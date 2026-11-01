@@ -12,6 +12,9 @@ mod riwayat;
 
 use axum::{
     extract::DefaultBodyLimit,
+    http::{header, HeaderValue},
+    middleware,
+    response::Response,
     routing::{delete, get, post, put},
     Router,
 };
@@ -22,6 +25,14 @@ use tower_sessions::{MemoryStore, SessionManagerLayer};
 #[derive(Clone)]
 pub struct AppState {
     pub db: MySqlPool,
+}
+
+/// Respons tanpa Cache-Control diberi `no-cache`: browser tetap boleh menyimpan, tapi selalu memeriksa ulang.
+async fn no_cache_default(mut res: Response) -> Response {
+    res.headers_mut()
+        .entry(header::CACHE_CONTROL)
+        .or_insert(HeaderValue::from_static("no-cache"));
+    res
 }
 
 fn router(state: AppState) -> Router {
@@ -74,6 +85,10 @@ fn router(state: AppState) -> Router {
         .fallback_service(ServeDir::new("static"))
         // Sesi disimpan di memori: sesi hilang saat server restart (cukup untuk MVP).
         .layer(SessionManagerLayer::new(MemoryStore::default()).with_secure(false))
+        // File statis dan API tidak boleh disimpan browser lebih lama dari seharusnya.
+        // Respons yang sudah punya Cache-Control sendiri (foto) tidak diubah.
+        // Diletakkan di akhir supaya ikut membungkus fallback (file statis).
+        .layer(middleware::map_response(no_cache_default))
         .with_state(state)
 }
 
