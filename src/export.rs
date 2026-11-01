@@ -136,6 +136,15 @@ pub async fn export_pdf(
         .into_response())
 }
 
+/// Nama LPK dari nama pokmas: kata "Pokmas" di depan dibuang, misalnya "Pokmas AL Hidayah" menjadi "AL Hidayah".
+fn nama_lpk(pokmas: &str) -> String {
+    let t = pokmas.trim();
+    match t.get(..7) {
+        Some(awal) if awal.eq_ignore_ascii_case("pokmas ") => t[7..].trim().to_string(),
+        _ => t.to_string(),
+    }
+}
+
 #[derive(Deserialize)]
 pub struct LpkQuery {
     /// true untuk pratinjau di halaman. false (default) untuk unduhan.
@@ -188,7 +197,7 @@ pub async fn export_lpk(
 
     let lpk_header = pdf::LpkHeader {
         nama_pokmas: project.pokmas.clone(),
-        nama_lpk: project.pokmas.clone(),
+        nama_lpk: nama_lpk(&project.pokmas),
         desa: project.desa.clone(),
         kecamatan: project.kecamatan.clone(),
         kabupaten: project.kabupaten.clone(),
