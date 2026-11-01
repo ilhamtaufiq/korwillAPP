@@ -68,6 +68,7 @@ fn router(state: AppState) -> Router {
         .route("/api/projects/import-xlsx", post(import::import_xlsx))
         .route("/api/projects/:id/photos", get(photos::list))
         .route("/api/projects/:id/export.pdf", get(export::export_pdf))
+        .route("/api/projects/:id/export-lpk.pdf", get(export::export_lpk))
         .route(
             "/api/beneficiaries/:id/photos/:building/:stage",
             post(photos::upload).delete(photos::delete),

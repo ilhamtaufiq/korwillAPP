@@ -135,3 +135,81 @@ pub async fn export_pdf(
     )
         .into_response())
 }
+
+#[derive(Deserialize)]
+pub struct LpkQuery {
+    /// true untuk pratinjau di halaman. false (default) untuk unduhan.
+    #[serde(default)]
+    inline: bool,
+}
+
+/// Ekspor PDF format LPK: satu halaman per pokmas. Setiap sel memakai foto dari pemanfaat
+/// pertama (urut No) yang punya foto di sel itu. Bilik dipakai untuk Bangunan Atas,
+/// Tangki Septik untuk Bangunan Bawah.
+pub async fn export_lpk(
+    State(st): State<AppState>,
+    session: Session,
+    Path(project_id): Path<u64>,
+    Query(query): Query<LpkQuery>,
+) -> Result<Response, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    ensure_project_access(&st.db, &user, project_id).await?;
+
+    let project = sqlx::query_as::<_, Project>(
+        "SELECT id, judul, kegiatan, pokmas, desa, kecamatan, kabupaten, tahun, kode_proyek, target_sasaran, korwil_nama, tfl_nama, fm_pemberdayaan_nama, pagu_dana FROM projects WHERE id = ? AND deleted_at IS NULL",
+    )
+    .bind(project_id)
+    .fetch_optional(&st.db)
+    .await?
+    .ok_or(AppError::NotFound)?;
+
+    let photo_rows: Vec<(String, u8, String)> = sqlx::query_as(
+        "SELECT CAST(ph.building AS CHAR), ph.stage, ph.thumb_path \
+         FROM photos ph JOIN beneficiaries b ON b.id = ph.beneficiary_id \
+         WHERE b.project_id = ? AND b.deleted_at IS NULL AND ph.deleted_at IS NULL \
+         ORDER BY b.no",
+    )
+    .bind(project_id)
+    .fetch_all(&st.db)
+    .await?;
+
+    let mut foto: [[Option<Photo>; 5]; 2] = Default::default();
+    for (building, stage, thumb_path) in photo_rows {
+        let Some(b) = BUILDINGS.iter().position(|x| *x == building) else { continue };
+        let Some(s) = STAGES.iter().position(|x| *x == stage) else { continue };
+        // Pemanfaat pertama yang punya foto di sel ini sudah dipakai.
+        if foto[b][s].is_some() {
+            continue;
+        }
+        if let Ok(bytes) = tokio::fs::read(&thumb_path).await {
+            foto[b][s] = Some(Photo { jpeg: bytes });
+        }
+    }
+
+    let lpk_header = pdf::LpkHeader {
+        nama_pokmas: project.pokmas.clone(),
+        nama_lpk: project.pokmas.clone(),
+        desa: project.desa.clone(),
+        kecamatan: project.kecamatan.clone(),
+        kabupaten: project.kabupaten.clone(),
+        provinsi: "Jawa Barat".to_string(),
+    };
+
+    let disposition = if query.inline { "inline" } else { "attachment" };
+    let pdf_bytes = tokio::task::spawn_blocking(move || pdf::render_lpk(&lpk_header, &foto))
+        .await
+        .map_err(internal)?
+        .map_err(internal)?;
+
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/pdf".to_string()),
+            (
+                header::CONTENT_DISPOSITION,
+                format!("{disposition}; filename=\"lpk-pekerjaan-{project_id}.pdf\""),
+            ),
+        ],
+        pdf_bytes,
+    )
+        .into_response())
+}

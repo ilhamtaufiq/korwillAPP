@@ -314,3 +314,116 @@ fn fit(s: &str, max_chars: usize) -> String {
         out
     }
 }
+
+// ---- Format LPK ----
+
+/// Header dokumen LPK: identitas pokmas dan lokasi.
+pub struct LpkHeader {
+    pub nama_pokmas: String,
+    pub nama_lpk: String,
+    pub desa: String,
+    pub kecamatan: String,
+    pub kabupaten: String,
+    pub provinsi: String,
+}
+
+const LPK_BANGUNAN: [&str; 2] = ["Bangunan Atas", "Bangunan Bawah"];
+const LPK_COL_NO: f32 = 12.0;
+const LPK_COL_JENIS: f32 = 35.0;
+const LPK_COL_FOTO: f32 = (PAGE_W - 2.0 * MARGIN - LPK_COL_NO - LPK_COL_JENIS) / 5.0;
+const LPK_HEAD_TOP_H: f32 = 6.0;
+const LPK_HEAD_STAGE_H: f32 = 8.0;
+const LPK_CELL_H: f32 = 60.0;
+const LPK_LABEL_W: f32 = 32.0;
+
+/// Membuat PDF format LPK: satu halaman per pokmas dengan baris Bangunan Atas dan Bawah.
+/// `foto[bangunan][tahap]` mengikuti urutan LPK_BANGUNAN dan STAGES.
+pub fn render_lpk(header: &LpkHeader, foto: &[[Option<Photo>; 5]; 2]) -> Result<Vec<u8>, String> {
+    let (doc, page, layer_id) = PdfDocument::new(
+        "Dokumentasi Pelaksanaan Konstruksi Sanitasi LPK",
+        Mm(PAGE_W),
+        Mm(PAGE_H),
+        "Halaman 1",
+    );
+    let font = doc.add_builtin_font(BuiltinFont::Helvetica).map_err(|e| format!("{e:?}"))?;
+    let font_bold = doc.add_builtin_font(BuiltinFont::HelveticaBold).map_err(|e| format!("{e:?}"))?;
+    let layer = doc.get_page(page).get_layer(layer_id);
+
+    text_center(
+        &layer,
+        &font_bold,
+        11.0,
+        PAGE_H - MARGIN - 5.0,
+        "DOKUMENTASI PELAKSANAAN KONSTRUKSI KEGIATAN SANITASI LPK",
+    );
+
+    let kiri = [
+        ("Nama Pokmas", header.nama_pokmas.as_str()),
+        ("Nama LPK", header.nama_lpk.as_str()),
+        ("Desa/Kelurahan", header.desa.as_str()),
+    ];
+    let kanan = [
+        ("Kecamatan", header.kecamatan.as_str()),
+        ("Kab/Kota", header.kabupaten.as_str()),
+        ("Provinsi", header.provinsi.as_str()),
+    ];
+    let info_top = PAGE_H - MARGIN - 18.0;
+    let x_kanan = PAGE_W / 2.0 + 10.0;
+    for (i, (label, value)) in kiri.iter().enumerate() {
+        identitas(&layer, &font, MARGIN, info_top - i as f32 * 8.0, label, value);
+    }
+    for (i, (label, value)) in kanan.iter().enumerate() {
+        identitas(&layer, &font, x_kanan, info_top - i as f32 * 8.0, label, value);
+    }
+
+    let table_top = info_top - 3.0 * 8.0 - 4.0;
+    let head_h = LPK_HEAD_TOP_H + LPK_HEAD_STAGE_H;
+    let head_y = table_top - head_h;
+    let x_jenis = MARGIN + LPK_COL_NO;
+    let x_foto = x_jenis + LPK_COL_JENIS;
+    let foto_w = LPK_COL_FOTO * 5.0;
+
+    // Header: No dan Jenis membentang dua baris, "Dokumentasi" di atas kolom tahap.
+    layer.set_fill_color(Color::Greyscale(Greyscale::new(0.85, None)));
+    rect(&layer, MARGIN, head_y, PAGE_W - 2.0 * MARGIN, head_h, true);
+    layer.set_fill_color(Color::Greyscale(Greyscale::new(0.0, None)));
+    rect(&layer, MARGIN, head_y, LPK_COL_NO, head_h, false);
+    text_center_in(&layer, &font, 8.0, MARGIN, LPK_COL_NO, head_y + head_h / 2.0 - 1.2, "No.");
+    rect(&layer, x_jenis, head_y, LPK_COL_JENIS, head_h, false);
+    text_center_in(&layer, &font, 8.0, x_jenis, LPK_COL_JENIS, head_y + head_h / 2.0 - 1.2, "Jenis Bangunan");
+    rect(&layer, x_foto, head_y + LPK_HEAD_STAGE_H, foto_w, LPK_HEAD_TOP_H, false);
+    text_center_in(&layer, &font, 8.0, x_foto, foto_w, head_y + LPK_HEAD_STAGE_H + 1.8, "Dokumentasi");
+    for (s, label) in STAGES.iter().enumerate() {
+        let x = x_foto + s as f32 * LPK_COL_FOTO;
+        rect(&layer, x, head_y, LPK_COL_FOTO, LPK_HEAD_STAGE_H, false);
+        text_center_in(&layer, &font, 8.0, x, LPK_COL_FOTO, head_y + 2.6, label);
+    }
+
+    for (b, label) in LPK_BANGUNAN.iter().enumerate() {
+        let row_y = head_y - (b as f32 + 1.0) * LPK_CELL_H;
+        let mid_y = row_y + LPK_CELL_H / 2.0 - 1.2;
+        rect(&layer, MARGIN, row_y, LPK_COL_NO, LPK_CELL_H, false);
+        text_center_in(&layer, &font, 8.0, MARGIN, LPK_COL_NO, mid_y, &(b + 1).to_string());
+        rect(&layer, x_jenis, row_y, LPK_COL_JENIS, LPK_CELL_H, false);
+        text_center_in(&layer, &font, 8.0, x_jenis, LPK_COL_JENIS, mid_y, label);
+        for (s, photo) in foto[b].iter().enumerate() {
+            let x = x_foto + s as f32 * LPK_COL_FOTO;
+            rect(&layer, x, row_y, LPK_COL_FOTO, LPK_CELL_H, false);
+            if let Some(photo) = photo {
+                let inner_w = LPK_COL_FOTO - 2.0 * PHOTO_INSET;
+                let inner_h = LPK_CELL_H - 2.0 * PHOTO_INSET;
+                draw_photo(&layer, &photo.jpeg, x + PHOTO_INSET, row_y + PHOTO_INSET, inner_w, inner_h);
+            }
+        }
+    }
+
+    let mut buf = BufWriter::new(Vec::new());
+    doc.save(&mut buf).map_err(|e| format!("{e:?}"))?;
+    buf.into_inner().map_err(|e| e.to_string())
+}
+
+fn identitas(layer: &PdfLayerReference, font: &IndirectFontRef, x: f32, y: f32, label: &str, value: &str) {
+    text_left(layer, font, 9.0, x, y, label);
+    text_left(layer, font, 9.0, x + LPK_LABEL_W, y, ":");
+    text_left(layer, font, 9.0, x + LPK_LABEL_W + 3.0, y, &fit(value, 60));
+}
