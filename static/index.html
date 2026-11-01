@@ -284,16 +284,18 @@ function relatif(iso) {
 
 function feedHtml(f) {
   return `
-    <li class="flex gap-3 px-4 py-3">
-      <img src="/api/photos/${f.photo_id}/thumb" alt="" loading="lazy" class="h-12 w-12 shrink-0 rounded-lg bg-muted object-contain">
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center justify-between gap-2">
-          <p class="truncate text-sm font-semibold">${esc(f.nama)}</p>
-          <span class="shrink-0 text-xs text-ink3">${relatif(f.taken_at)}</span>
+    <li>
+      <a href="/detail-proyek.html?id=${f.project_id}" class="flex gap-3 px-4 py-3 hover:bg-muted">
+        <img src="/api/photos/${f.photo_id}/thumb" alt="" loading="lazy" class="h-12 w-12 shrink-0 rounded-lg bg-muted object-contain">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-2">
+            <p class="truncate text-sm font-semibold">${esc(f.nama)}</p>
+            <span class="shrink-0 text-xs text-ink3">${relatif(f.taken_at)}</span>
+          </div>
+          <p class="text-sm text-primary">${BANGUNAN[f.building] || esc(f.building)} • tahap ${f.stage}%</p>
+          <p class="truncate text-xs text-ink3">${f.tfl_nama ? 'FM ' + esc(f.tfl_nama) + ' • ' : ''}${esc(f.pokmas)}</p>
         </div>
-        <p class="text-sm text-primary">${BANGUNAN[f.building] || esc(f.building)} • tahap ${f.stage}%</p>
-        <p class="truncate text-xs text-ink3">${f.tfl_nama ? 'FM ' + esc(f.tfl_nama) + ' • ' : ''}${esc(f.pokmas)}</p>
-      </div>
+      </a>
     </li>`;
 }
 

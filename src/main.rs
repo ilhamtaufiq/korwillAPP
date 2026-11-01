@@ -98,6 +98,14 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "mysql://root@127.0.0.1:3306/sanimas_dev".to_string());
     let pool = MySqlPoolOptions::new()
         .max_connections(5)
+        // Aplikasi ini untuk wilayah Indonesia. NOW() dan CURRENT_TIMESTAMP dihitung di zona WIB,
+        // supaya waktu foto dan riwayat sama dengan waktu yang ditampilkan browser.
+        .after_connect(|conn, _meta| {
+            Box::pin(async move {
+                sqlx::query("SET time_zone = '+07:00'").execute(conn).await?;
+                Ok(())
+            })
+        })
         .connect(&database_url)
         .await?;
     sqlx::migrate!("./migrations").run(&pool).await?;
