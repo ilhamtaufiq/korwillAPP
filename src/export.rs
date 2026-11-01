@@ -44,6 +44,16 @@ pub async fn export_pdf(
     let user = current_user(&session, &st.db).await?;
     ensure_project_access(&st.db, &user, project_id).await?;
 
+    // Format ditentukan dari kegiatan: kegiatan LPK memakai format LPK, selain itu format Sanimas.
+    let kegiatan: String = sqlx::query_scalar("SELECT kegiatan FROM projects WHERE id = ? AND deleted_at IS NULL")
+        .bind(project_id)
+        .fetch_optional(&st.db)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    if is_lpk(&kegiatan) {
+        return export_lpk(State(st), session, Path(project_id), Query(LpkQuery { inline: query.inline })).await;
+    }
+
     let project = sqlx::query_as::<_, Project>(
         "SELECT id, judul, kegiatan, pokmas, desa, kecamatan, kabupaten, tahun, kode_proyek, target_sasaran, korwil_nama, tfl_nama, fm_pemberdayaan_nama, pagu_dana FROM projects WHERE id = ? AND deleted_at IS NULL",
     )
@@ -134,6 +144,11 @@ pub async fn export_pdf(
         pdf_bytes,
     )
         .into_response())
+}
+
+/// Kegiatan yang namanya memuat "LPK" memakai format LPK.
+fn is_lpk(kegiatan: &str) -> bool {
+    kegiatan.to_lowercase().contains("lpk")
 }
 
 /// Nama LPK dari nama pokmas: kata "Pokmas" di depan dibuang, misalnya "Pokmas AL Hidayah" menjadi "AL Hidayah".
