@@ -10,13 +10,6 @@
   document.head.appendChild(hide);
 })();
 
-// Atribut hidden harus selalu menyembunyikan elemen. Tanpa ini, kelas flex dari Tailwind menimpanya.
-(function () {
-  const style = document.createElement('style');
-  style.textContent = '[hidden] { display: none !important; }';
-  document.head.appendChild(style);
-})();
-
 async function api(method, path, body, text) {
   const opts = { method, headers: {}, credentials: 'same-origin' };
   if (body !== undefined) {

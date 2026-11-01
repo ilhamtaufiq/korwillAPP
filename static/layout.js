@@ -1,5 +1,4 @@
 // Layout master: sidebar, topbar, dan pembungkus konten. Dimuat oleh setiap halaman yang sudah login.
-// Elemen header/aside lama di halaman ditandai data-legacy-shell lalu dihapus di sini.
 // Konten halaman dipindahkan ke dalam #page, sehingga id dan script halaman tetap bekerja.
 
 (function () {
@@ -131,9 +130,6 @@
   }
 
   async function mount() {
-    // Hapus header/aside lama dari halaman.
-    document.querySelectorAll('[data-legacy-shell]').forEach((el) => el.remove());
-
     // Pindahkan konten halaman ke dalam satu kontainer. <main> lama dibuka (isinya dipindah).
     const content = document.createElement('div');
     content.className = 'mx-auto max-w-7xl px-4 pb-10 lg:px-6';

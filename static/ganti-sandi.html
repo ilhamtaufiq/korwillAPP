@@ -5,26 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Ganti Kata Sandi | KorwilAPP</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = { theme: { extend: {
-  colors: {
-    primary: '#059669', 'primary-hover': '#047857', 'primary-soft': '#ECFDF5',
-    canvas: '#F8FAFC', muted: '#F1F5F9', line: '#E2E8F0',
-    ink: '#0F172A', ink2: '#334155', ink3: '#64748B',
-    danger: '#B91C1C', 'danger-soft': '#FEF2F2', 'danger-line': '#FCA5A5',
-  },
-  fontFamily: { sans: ['Inter', 'sans-serif'] },
-} } };
-</script>
+<link rel="stylesheet" href="/css/app.css">
 <script src="/app.js"></script>
 <script src="/layout.js"></script>
 </head>
 <body class="bg-canvas font-sans text-ink min-h-screen">
-<header data-legacy-shell class="sticky top-0 z-10 flex h-14 items-center border-b border-line bg-white px-4">
-  <a href="/daftar-proyek.html" class="inline-flex h-11 items-center px-2 text-sm font-semibold text-ink2">Kembali</a>
-  <h1 class="ml-2 text-base font-bold">Ganti Kata Sandi</h1>
-</header>
 
 <main class="mx-auto max-w-md px-4 py-6">
   <div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>

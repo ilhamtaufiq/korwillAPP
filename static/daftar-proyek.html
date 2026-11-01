@@ -5,34 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Daftar Pekerjaan | KorwilAPP</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = { theme: { extend: {
-  colors: {
-    primary: '#059669', 'primary-hover': '#047857', 'primary-soft': '#ECFDF5',
-    canvas: '#F8FAFC', muted: '#F1F5F9', line: '#E2E8F0',
-    ink: '#0F172A', ink2: '#334155', ink3: '#64748B',
-    danger: '#B91C1C', 'danger-soft': '#FEF2F2', 'danger-line': '#FCA5A5',
-  },
-  fontFamily: { sans: ['Inter', 'sans-serif'] },
-} } };
-</script>
+<link rel="stylesheet" href="/css/app.css">
 <script src="/app.js"></script>
 <script src="/layout.js"></script>
 </head>
 <body class="bg-canvas font-sans text-ink min-h-screen">
-<header data-legacy-shell class="sticky top-0 z-10 border-b border-line bg-white">
-  <div class="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-    <div>
-      <p class="text-sm font-bold leading-4">KorwilAPP</p>
-      <p class="text-xs text-ink3" id="user-label">Memuat...</p>
-    </div>
-    <div class="flex items-center gap-1">
-      <a href="/" class="inline-flex h-11 items-center rounded-lg px-3 text-sm font-semibold text-ink2 hover:bg-muted">Dashboard</a>
-      <button onclick="logout()" class="h-11 rounded-lg px-3 text-sm font-semibold text-ink2 hover:bg-muted">Keluar</button>
-    </div>
-  </div>
-</header>
 
 <main class="mx-auto max-w-4xl px-4 py-6">
   <div class="mb-4 flex items-center justify-between gap-3">

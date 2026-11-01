@@ -3,3 +3,4 @@ uploads/
 *.stackdump
 *.exe
 .env
+node_modules/

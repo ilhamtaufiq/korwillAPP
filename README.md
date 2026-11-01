@@ -51,6 +51,17 @@ Butuh Rust (stable) dan MySQL 8.
 
 Aplikasi harus dijalankan dari folder root proyek, karena folder `static/` dan `uploads/` dibaca dari lokasi itu.
 
+## Mengubah tampilan (CSS)
+
+Gaya dibuat dengan Tailwind yang di-build sekali, hasilnya ada di `static/css/app.css` dan ikut di repository. Setelah mengubah kelas Tailwind atau warna di halaman, jalankan:
+
+```bash
+npm install
+npm run build:css
+```
+
+Warna dan font ada di `tailwind.config.js`. Untuk pengembangan, `npm run watch:css` membangun ulang setiap ada perubahan.
+
 ## Membuat akun admin pertama
 
 Aplikasi tidak membuat akun admin otomatis. Buat akun lewat perintah `create-user`. Password dibaca dari stdin supaya tidak tersimpan di riwayat shell:

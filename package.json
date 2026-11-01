@@ -1,0 +1,12 @@
+{
+  "name": "korwilapp-frontend",
+  "private": true,
+  "description": "Build CSS Tailwind untuk halaman statis di folder static/.",
+  "scripts": {
+    "build:css": "tailwindcss -i ./styles/input.css -o ./static/css/app.css --minify",
+    "watch:css": "tailwindcss -i ./styles/input.css -o ./static/css/app.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

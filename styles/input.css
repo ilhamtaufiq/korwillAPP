@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Atribut hidden harus selalu menyembunyikan elemen, walau kelas flex dari Tailwind ikut terpasang. */
+[hidden] {
+  display: none !important;
+}
