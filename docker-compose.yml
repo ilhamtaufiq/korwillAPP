@@ -1,0 +1,41 @@
+# Dipakai oleh Coolify (Docker Compose) dan juga bisa dijalankan manual dengan `docker compose up -d`.
+#
+# Domain di Coolify: pasang korwil.cianjur.space untuk layanan "app" pada port 8080.
+# Coolify memasang reverse proxy dan sertifikat HTTPS secara otomatis.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      BIND: 0.0.0.0:8080
+      # Password dengan karakter khusus (@ : / ? # %) harus di-URL-encode di sini.
+      DATABASE_URL: mysql://korwil:${DB_PASSWORD}@db:3306/sanimas
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    expose:
+      - "8080"
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: sanimas
+      MYSQL_USER: korwil
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  uploads:
+  dbdata:

@@ -1,0 +1,310 @@
+use axum::{
+    body::Bytes,
+    extract::{Path, Query, State},
+    http::{header, StatusCode},
+    response::{IntoResponse, Response},
+    Json,
+};
+use image::{imageops::FilterType, ColorType, DynamicImage};
+use serde::Serialize;
+use sqlx::MySqlPool;
+use tower_sessions::Session;
+
+use crate::{
+    auth::current_user,
+    error::{internal, AppError},
+    projects::ensure_project_access,
+    AppState,
+};
+
+pub const UPLOAD_DIR: &str = "uploads";
+pub const BUILDINGS: [&str; 2] = ["bilik", "tangki_septik"];
+pub const STAGES: [u8; 5] = [0, 25, 50, 75, 100];
+
+const FULL_PX: u32 = 1280;
+const THUMB_PX: u32 = 400;
+
+#[derive(Serialize, sqlx::FromRow)]
+pub struct PhotoRow {
+    pub id: u64,
+    pub beneficiary_id: u64,
+    pub building: String,
+    pub stage: u8,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+}
+
+/// Koordinat GPS dari perangkat, dikirim sebagai query ?lat=&lng=. Boleh tidak ada.
+#[derive(serde::Deserialize)]
+pub struct GeoQuery {
+    lat: Option<f64>,
+    lng: Option<f64>,
+}
+
+pub async fn beneficiary_project_id(db: &MySqlPool, beneficiary_id: u64) -> Result<u64, AppError> {
+    sqlx::query_scalar("SELECT project_id FROM beneficiaries WHERE id = ?")
+        .bind(beneficiary_id)
+        .fetch_optional(db)
+        .await?
+        .ok_or(AppError::NotFound)
+}
+
+fn validate_cell(building: &str, stage: u8) -> Result<(), AppError> {
+    if !BUILDINGS.contains(&building) || !STAGES.contains(&stage) {
+        return Err(AppError::BadRequest("Sel foto tidak valid".to_string()));
+    }
+    Ok(())
+}
+
+/// Daftar semua foto dalam satu proyek. Thumbnail diambil lewat /api/photos/:id/thumb.
+pub async fn list(
+    State(st): State<AppState>,
+    session: Session,
+    Path(project_id): Path<u64>,
+) -> Result<Json<Vec<PhotoRow>>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    ensure_project_access(&st.db, &user, project_id).await?;
+
+    let rows = sqlx::query_as::<_, PhotoRow>(
+        "SELECT ph.id, ph.beneficiary_id, CAST(ph.building AS CHAR) AS building, ph.stage, ph.latitude, ph.longitude \
+         FROM photos ph JOIN beneficiaries b ON b.id = ph.beneficiary_id \
+         WHERE b.project_id = ?",
+    )
+    .bind(project_id)
+    .fetch_all(&st.db)
+    .await?;
+    Ok(Json(rows))
+}
+
+/// Unggah foto untuk satu sel. Body berisi bytes gambar mentah (JPEG atau PNG).
+/// Unggah ulang ke sel yang sama menimpa foto lama.
+pub async fn upload(
+    State(st): State<AppState>,
+    session: Session,
+    Path((beneficiary_id, building, stage)): Path<(u64, String, u8)>,
+    Query(geo): Query<GeoQuery>,
+    body: Bytes,
+) -> Result<(StatusCode, Json<PhotoRow>), AppError> {
+    let user = current_user(&session, &st.db).await?;
+    let project_id = beneficiary_project_id(&st.db, beneficiary_id).await?;
+    ensure_project_access(&st.db, &user, project_id).await?;
+    validate_cell(&building, stage)?;
+    if body.is_empty() {
+        return Err(AppError::BadRequest("Foto kosong".to_string()));
+    }
+
+    // Decode dan encode gambar berat, jadi dijalankan di thread blocking.
+    let (full, thumb) = tokio::task::spawn_blocking(move || process(&body))
+        .await
+        .map_err(internal)??;
+
+    let dir = format!("{UPLOAD_DIR}/{project_id}");
+    tokio::fs::create_dir_all(&dir).await.map_err(internal)?;
+    let path = format!("{dir}/{beneficiary_id}-{building}-{stage}.jpg");
+    let thumb_path = format!("{dir}/{beneficiary_id}-{building}-{stage}-thumb.jpg");
+    tokio::fs::write(&path, &full).await.map_err(internal)?;
+    tokio::fs::write(&thumb_path, &thumb).await.map_err(internal)?;
+
+    sqlx::query(
+        "INSERT INTO photos (beneficiary_id, building, stage, path, thumb_path, taken_at, uploaded_by, latitude, longitude) \
+         VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?) \
+         ON DUPLICATE KEY UPDATE path = VALUES(path), thumb_path = VALUES(thumb_path), \
+         taken_at = VALUES(taken_at), uploaded_by = VALUES(uploaded_by), \
+         latitude = VALUES(latitude), longitude = VALUES(longitude)",
+    )
+    .bind(beneficiary_id)
+    .bind(&building)
+    .bind(stage)
+    .bind(&path)
+    .bind(&thumb_path)
+    .bind(user.id)
+    .bind(geo.lat.filter(|v| (-90.0..=90.0).contains(v)))
+    .bind(geo.lng.filter(|v| (-180.0..=180.0).contains(v)))
+    .execute(&st.db)
+    .await?;
+
+    let row = sqlx::query_as::<_, PhotoRow>(
+        "SELECT id, beneficiary_id, CAST(building AS CHAR) AS building, stage, latitude, longitude FROM photos \
+         WHERE beneficiary_id = ? AND building = ? AND stage = ?",
+    )
+    .bind(beneficiary_id)
+    .bind(&building)
+    .bind(stage)
+    .fetch_one(&st.db)
+    .await?;
+    Ok((StatusCode::CREATED, Json(row)))
+}
+
+pub async fn delete(
+    State(st): State<AppState>,
+    session: Session,
+    Path((beneficiary_id, building, stage)): Path<(u64, String, u8)>,
+) -> Result<StatusCode, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    let project_id = beneficiary_project_id(&st.db, beneficiary_id).await?;
+    ensure_project_access(&st.db, &user, project_id).await?;
+    validate_cell(&building, stage)?;
+
+    let paths: Option<(String, String)> = sqlx::query_as(
+        "SELECT path, thumb_path FROM photos WHERE beneficiary_id = ? AND building = ? AND stage = ?",
+    )
+    .bind(beneficiary_id)
+    .bind(&building)
+    .bind(stage)
+    .fetch_optional(&st.db)
+    .await?;
+    let Some((path, thumb_path)) = paths else {
+        return Err(AppError::NotFound);
+    };
+
+    sqlx::query("DELETE FROM photos WHERE beneficiary_id = ? AND building = ? AND stage = ?")
+        .bind(beneficiary_id)
+        .bind(&building)
+        .bind(stage)
+        .execute(&st.db)
+        .await?;
+    // File yang sudah hilang dari disk tidak perlu dianggap error.
+    let _ = tokio::fs::remove_file(&path).await;
+    let _ = tokio::fs::remove_file(&thumb_path).await;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Foto ukuran penuh untuk pratinjau. Aksesnya diperiksa seperti thumbnail.
+pub async fn image(
+    State(st): State<AppState>,
+    session: Session,
+    Path(id): Path<u64>,
+) -> Result<Response, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    let row: Option<(u64, String)> = sqlx::query_as(
+        "SELECT b.project_id, ph.path FROM photos ph \
+         JOIN beneficiaries b ON b.id = ph.beneficiary_id WHERE ph.id = ?",
+    )
+    .bind(id)
+    .fetch_optional(&st.db)
+    .await?;
+    let Some((project_id, path)) = row else {
+        return Err(AppError::NotFound);
+    };
+    ensure_project_access(&st.db, &user, project_id).await?;
+
+    let bytes = tokio::fs::read(&path).await.map_err(|_| AppError::NotFound)?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "image/jpeg"),
+            (header::CACHE_CONTROL, "private, max-age=3600"),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
+/// Thumbnail satu foto. Tetap diperiksa aksesnya karena foto tidak boleh terbuka tanpa login.
+pub async fn thumb(
+    State(st): State<AppState>,
+    session: Session,
+    Path(id): Path<u64>,
+) -> Result<Response, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    let row: Option<(u64, String)> = sqlx::query_as(
+        "SELECT b.project_id, ph.thumb_path FROM photos ph \
+         JOIN beneficiaries b ON b.id = ph.beneficiary_id WHERE ph.id = ?",
+    )
+    .bind(id)
+    .fetch_optional(&st.db)
+    .await?;
+    let Some((project_id, thumb_path)) = row else {
+        return Err(AppError::NotFound);
+    };
+    ensure_project_access(&st.db, &user, project_id).await?;
+
+    let bytes = tokio::fs::read(&thumb_path).await.map_err(|_| AppError::NotFound)?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "image/jpeg"),
+            (header::CACHE_CONTROL, "private, max-age=3600"),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
+/// Foto disimpan utuh (tidak dipotong), hanya diperkecil jika terlalu besar. Hasilnya versi besar dan thumbnail (JPEG).
+fn process(bytes: &[u8]) -> Result<(Vec<u8>, Vec<u8>), AppError> {
+    let img = image::load_from_memory(bytes).map_err(|_| {
+        AppError::BadRequest("Format foto tidak didukung. Gunakan JPEG atau PNG.".to_string())
+    })?;
+    // Foto HP sering disimpan miring dan hanya diberi tahu lewat EXIF. Diputar dulu sebelum crop.
+    let img = apply_orientation(img, read_orientation(bytes));
+    let full = encode_jpeg(&fit(&img, FULL_PX), 85)?;
+    let thumb = encode_jpeg(&fit(&img, THUMB_PX), 80)?;
+    Ok((full, thumb))
+}
+
+/// Nilai orientasi EXIF (1-8). Tanpa EXIF atau tidak terbaca, dianggap 1 (tidak diputar).
+fn read_orientation(bytes: &[u8]) -> u32 {
+    let mut cursor = std::io::Cursor::new(bytes);
+    exif::Reader::new()
+        .read_from_container(&mut cursor)
+        .ok()
+        .and_then(|data| data.get_field(exif::Tag::Orientation, exif::In::PRIMARY).and_then(|f| f.value.get_uint(0)))
+        .unwrap_or(1)
+}
+
+/// Menerapkan orientasi EXIF: rotasi dan/atau cermin sesuai standar EXIF 1-8.
+fn apply_orientation(img: DynamicImage, orientation: u32) -> DynamicImage {
+    match orientation {
+        2 => img.fliph(),
+        3 => img.rotate180(),
+        4 => img.flipv(),
+        5 => img.rotate90().fliph(),
+        6 => img.rotate90(),
+        7 => img.rotate270().fliph(),
+        8 => img.rotate270(),
+        _ => img,
+    }
+}
+
+/// Mengecilkan gambar hanya jika lebih besar dari batas. Tidak pernah membesarkan.
+fn fit(img: &DynamicImage, max_px: u32) -> DynamicImage {
+    if img.width() > max_px {
+        img.resize(max_px, max_px, FilterType::Triangle)
+    } else {
+        img.clone()
+    }
+}
+
+fn encode_jpeg(img: &DynamicImage, quality: u8) -> Result<Vec<u8>, AppError> {
+    let rgb = img.to_rgb8();
+    let mut out = Vec::new();
+    ::image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, quality)
+        .encode(rgb.as_raw(), rgb.width(), rgb.height(), ColorType::Rgb8)
+        .map_err(internal)?;
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn landscape() -> DynamicImage {
+        DynamicImage::new_rgb8(4, 2)
+    }
+
+    #[test]
+    fn orientation_6_rotates_landscape_to_portrait() {
+        let img = apply_orientation(landscape(), 6);
+        assert_eq!((img.width(), img.height()), (2, 4));
+    }
+
+    #[test]
+    fn orientation_1_and_3_keep_dimensions() {
+        assert_eq!(apply_orientation(landscape(), 1).dimensions(), (4, 2));
+        assert_eq!(apply_orientation(landscape(), 3).dimensions(), (4, 2));
+    }
+
+    #[test]
+    fn missing_exif_is_treated_as_orientation_1() {
+        assert_eq!(read_orientation(b"bukan gambar"), 1);
+    }
+}

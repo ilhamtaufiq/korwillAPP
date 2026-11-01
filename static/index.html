@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ringkasan | KorwilAPP</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  colors: {
+    primary: '#059669', 'primary-hover': '#047857', 'primary-soft': '#ECFDF5',
+    canvas: '#F8FAFC', muted: '#F1F5F9', line: '#E2E8F0',
+    ink: '#0F172A', ink2: '#334155', ink3: '#64748B',
+    danger: '#B91C1C', 'danger-soft': '#FEF2F2', 'danger-line': '#FCA5A5',
+    warn: '#B45309', 'warn-soft': '#FFFBEB', 'warn-line': '#FCD34D',
+  },
+  fontFamily: { sans: ['Inter', 'sans-serif'] },
+} } };
+</script>
+<script src="/app.js"></script>
+<script src="/layout.js"></script>
+<style>
+  .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 20px; line-height: 1; display: inline-block; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body class="bg-canvas font-sans text-ink min-h-screen">
+
+<!-- Sidebar -->
+<aside data-legacy-shell class="fixed left-0 top-0 z-50 hidden h-full w-64 flex-col justify-between border-r border-line bg-white lg:flex">
+  <div>
+    <div class="flex h-16 items-center gap-3 border-b border-line px-4">
+      <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
+        <span class="material-symbols-outlined text-[20px]">water_drop</span>
+      </div>
+      <div class="flex flex-col">
+        <span class="text-sm font-bold leading-none">KorwilAPP</span>
+        <span class="text-xs text-ink3">Sanimas Wilayah</span>
+      </div>
+    </div>
+    <div class="p-4">
+      <p class="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Menu Utama</p>
+      <nav class="flex flex-col gap-1 text-sm font-semibold">
+        <a href="/" class="flex items-center gap-3 rounded-lg border-l-2 border-primary bg-primary-soft px-3 py-2 text-primary">
+          <span class="material-symbols-outlined">grid_view</span>Ringkasan Wilayah
+        </a>
+        <a href="/daftar-proyek.html" class="flex items-center gap-3 rounded-lg px-3 py-2 text-ink2 hover:bg-muted">
+          <span class="material-symbols-outlined">construction</span>Daftar Pekerjaan
+        </a>
+        <a id="menu-tambah" href="/tambah-proyek.html" hidden class="flex items-center gap-3 rounded-lg px-3 py-2 text-ink2 hover:bg-muted">
+          <span class="material-symbols-outlined">add_circle</span>Tambah Pekerjaan
+        </a>
+      </nav>
+    </div>
+    <div class="px-4 py-2">
+      <p class="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Akun</p>
+      <nav class="flex flex-col gap-1 text-sm font-semibold">
+        <a href="/ganti-sandi.html" class="flex items-center gap-3 rounded-lg px-3 py-2 text-ink2 hover:bg-muted">
+          <span class="material-symbols-outlined">key</span>Ganti Kata Sandi
+        </a>
+      </nav>
+    </div>
+  </div>
+  <div class="border-t border-line p-4">
+    <div class="flex items-center gap-2">
+      <div class="h-2 w-2 rounded-full bg-primary"></div>
+      <span class="text-xs text-ink3">Sistem Sinkron Online</span>
+    </div>
+  </div>
+</aside>
+
+<!-- Header -->
+<header data-legacy-shell class="fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-line bg-white px-4 lg:left-64 lg:px-6">
+  <div class="flex items-center gap-3">
+    <div class="flex items-center gap-1 text-xs text-ink3 lg:hidden">
+      <span class="font-bold text-ink">KorwilAPP</span>
+    </div>
+    <div class="hidden items-center gap-2 text-xs text-ink3 md:flex">
+      <span class="material-symbols-outlined text-[16px]">map</span>
+      <span>Wilayah Operasional</span>
+      <span>/</span>
+      <span class="font-semibold text-ink">Korwil III - Jawa Barat</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <div class="flex flex-col text-right">
+      <span id="user-name" class="text-sm font-semibold">Memuat...</span>
+      <span id="user-role" class="text-xs text-ink3"></span>
+    </div>
+    <button onclick="logout()" class="h-9 rounded-lg border border-line px-3 text-sm font-semibold text-ink2 hover:bg-muted">Keluar</button>
+  </div>
+</header>
+
+<main class="pt-20 lg:pl-64">
+  <div class="mx-auto max-w-7xl px-4 pb-10 lg:px-6">
+    <div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
+
+    <!-- Page header -->
+    <div class="flex flex-col gap-4 pb-6 md:flex-row md:items-end md:justify-between">
+      <div class="flex flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary">Monitoring Aktif</span>
+          <span id="sync-time" class="text-xs text-ink3"></span>
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight lg:text-3xl">Ringkasan Kinerja &amp; Monitoring Lapangan</h1>
+        <p class="text-sm text-ink2">Wilayah Operasional: <span class="font-semibold">Korwil III - Jawa Barat</span></p>
+      </div>
+      <div class="flex shrink-0 items-center gap-2">
+        <a id="btn-tambah" href="/tambah-proyek.html" hidden class="inline-flex h-11 items-center gap-2 rounded-lg border border-line bg-white px-4 font-semibold text-ink hover:bg-muted">
+          <span class="material-symbols-outlined text-[20px] text-ink3">add_circle</span>Tambah Pekerjaan
+        </a>
+        <a href="/daftar-proyek.html" class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-4 font-semibold text-white hover:bg-primary-hover">
+          <span class="material-symbols-outlined text-[20px]">construction</span>Daftar Pekerjaan
+        </a>
+      </div>
+    </div>
+
+    <!-- KPI cards -->
+    <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="flex flex-col justify-between rounded-lg border border-line bg-white p-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-sm font-semibold text-ink2">Total Pekerjaan</p>
+            <p class="mt-1 text-3xl font-bold"><span id="kpi-pekerjaan">-</span> <span class="text-sm font-normal text-ink3">pekerjaan</span></p>
+          </div>
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary"><span class="material-symbols-outlined">apartment</span></div>
+        </div>
+        <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-xs">
+          <span id="kpi-aktif" class="font-semibold text-primary"></span>
+          <span id="kpi-belum" class="text-ink3"></span>
+        </div>
+      </div>
+
+      <div class="flex flex-col justify-between rounded-lg border border-line bg-white p-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-sm font-semibold text-ink2">Pemanfaat / Target KK</p>
+            <p class="mt-1 text-3xl font-bold"><span id="kpi-pemanfaat">-</span> <span class="text-sm font-normal text-ink3">/ <span id="kpi-target">-</span> KK</span></p>
+          </div>
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary"><span class="material-symbols-outlined">diversity_3</span></div>
+        </div>
+        <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-xs">
+          <span id="kpi-target-persen" class="font-semibold text-primary"></span>
+          <span id="kpi-sisa" class="text-ink3"></span>
+        </div>
+      </div>
+
+      <div class="flex flex-col justify-between rounded-lg border border-line bg-white p-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-sm font-semibold text-ink2">Foto Terverifikasi</p>
+            <p class="mt-1 text-3xl font-bold"><span id="kpi-foto">-</span> <span class="text-sm font-normal text-ink3">foto</span></p>
+          </div>
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary"><span class="material-symbols-outlined">photo_library</span></div>
+        </div>
+        <div class="mt-4">
+          <div class="h-2 rounded-full bg-muted"><div id="kpi-bar" class="h-2 rounded-full bg-primary" style="width: 0%"></div></div>
+          <div class="mt-2 flex justify-between text-xs">
+            <span id="kpi-foto-persen" class="font-semibold text-primary"></span>
+            <span id="kpi-sel" class="text-ink3"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col justify-between rounded-lg border border-line bg-white p-4">
+        <div class="flex items-start justify-between">
+          <div>
+            <p class="text-sm font-semibold text-ink2">Pekerjaan Lengkap</p>
+            <p class="mt-1 text-3xl font-bold"><span id="kpi-lengkap">-</span> <span class="text-sm font-normal text-ink3">pekerjaan</span></p>
+          </div>
+          <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-soft text-primary"><span class="material-symbols-outlined">task_alt</span></div>
+        </div>
+        <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-xs">
+          <span class="text-ink2">Semua sel foto terisi</span>
+          <span id="kpi-lengkap-sub" class="text-ink3"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main grid -->
+    <section class="mt-6 grid gap-6 xl:grid-cols-[1fr_340px]">
+      <div class="min-w-0 rounded-lg border border-line bg-white">
+        <div class="flex flex-col gap-3 border-b border-line p-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 class="font-semibold">Daftar Pekerjaan Aktif</h2>
+            <p class="text-xs text-ink3">Monitoring pelaksanaan fisik dan kelengkapan foto bilik dan tangki septik.</p>
+          </div>
+          <input id="filter-search" type="search" placeholder="Cari pokmas, desa, atau TFL..."
+            class="h-11 w-full rounded-lg border border-line bg-white px-4 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none md:w-64">
+        </div>
+        <div class="flex flex-wrap gap-2 border-b border-line px-4 py-3 text-xs font-semibold">
+          <button data-status="" class="status-chip h-9 rounded-lg bg-primary px-3 text-white">Semua</button>
+          <button data-status="berjalan" class="status-chip h-9 rounded-lg bg-muted px-3 text-ink2">Berjalan</button>
+          <button data-status="lengkap" class="status-chip h-9 rounded-lg bg-muted px-3 text-ink2">Lengkap</button>
+          <button data-status="belum_mulai" class="status-chip h-9 rounded-lg bg-muted px-3 text-ink2">Belum Mulai</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[640px] text-left text-sm">
+            <thead class="bg-muted text-xs font-semibold text-ink2">
+              <tr>
+                <th class="px-4 py-2">Pokmas &amp; Lokasi</th>
+                <th class="px-4 py-2">TFL</th>
+                <th class="px-4 py-2 text-center">Pemanfaat</th>
+                <th class="px-4 py-2">Progres Foto</th>
+                <th class="px-4 py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="pekerjaan-rows" class="divide-y divide-line"></tbody>
+          </table>
+        </div>
+        <div class="flex flex-col gap-3 border-t border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p id="list-count" class="text-xs text-ink3"></p>
+          <div id="pager" class="flex flex-wrap items-center gap-1"></div>
+        </div>
+      </div>
+
+      <aside class="flex min-w-0 flex-col gap-6">
+        <div class="rounded-lg border border-line bg-white">
+          <div class="flex items-center justify-between border-b border-line px-4 py-3">
+            <div>
+              <h2 class="font-semibold">Unggahan Terbaru</h2>
+              <p class="text-xs text-ink3">Foto yang baru diunggah lapangan</p>
+            </div>
+            <span class="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary">Live</span>
+          </div>
+          <ul id="feed-list" class="divide-y divide-line"></ul>
+          <div class="border-t border-line p-3">
+            <a href="/daftar-proyek.html" class="block rounded-lg px-3 py-2 text-center text-sm font-semibold text-primary hover:bg-primary-soft">Lihat semua pekerjaan</a>
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-line bg-white p-4">
+          <div class="mb-2 flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">verified</span>
+            <h2 class="font-semibold">Standar Teknis</h2>
+          </div>
+          <p class="text-sm text-ink2">Pastikan dokumentasi progres lengkap untuk tahap <span class="font-semibold">0%, 25%, 50%, 75%, dan 100%</span> pada bilik dan tangki septik.</p>
+          <ul class="mt-3 list-inside list-disc space-y-1 text-sm text-ink2">
+            <li>Foto disimpan utuh, tidak dipotong. Tabel dan PDF menyesuaikan ukuran foto.</li>
+            <li>Koordinat GPS ikut tersimpan jika perangkat mengizinkan lokasi.</li>
+            <li>Ganti kata sandi awal setelah login pertama.</li>
+          </ul>
+        </div>
+      </aside>
+    </section>
+  </div>
+</main>
+
+<script>
+const errorBox = document.getElementById('error-message');
+const angka = (n) => Number(n).toLocaleString('id-ID');
+const BANGUNAN = { bilik: 'Bilik', tangki_septik: 'Tangki Septik' };
+let semuaPekerjaan = [];
+let statusAktif = '';
+
+function statusPill(status) {
+  if (status === 'lengkap') {
+    return '<span class="inline-flex items-center gap-1 rounded-md border border-primary bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary">Lengkap / Siap PDF</span>';
+  }
+  if (status === 'berjalan') {
+    return '<span class="inline-flex items-center gap-1 rounded-md border border-primary/40 px-2 py-0.5 text-xs font-semibold text-primary">Berjalan</span>';
+  }
+  return '<span class="inline-flex items-center gap-1 rounded-md border border-line bg-muted px-2 py-0.5 text-xs font-semibold text-ink3">Belum Mulai</span>';
+}
+
+function rowHtml(p) {
+  return `
+    <tr class="hover:bg-muted">
+      <td class="px-4 py-3">
+        <a href="/detail-proyek.html?id=${p.id}" class="font-semibold hover:text-primary">${esc(p.pokmas)}</a>
+        <p class="text-xs text-ink3">Desa ${esc(p.desa)}, ${esc(p.kabupaten)}</p>
+      </td>
+      <td class="px-4 py-3 text-ink2">${p.tfl_nama ? esc(p.tfl_nama) : '<span class="text-ink3">-</span>'}</td>
+      <td class="px-4 py-3 text-center font-semibold">${angka(p.pemanfaat)}</td>
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-2">
+          <div class="h-2 w-28 rounded-full bg-muted"><div class="h-2 rounded-full bg-primary" style="width: ${Math.min(p.persen, 100)}%"></div></div>
+          <span class="text-xs font-semibold text-ink2">${angka(p.foto)} / ${angka(p.sel_total)}</span>
+        </div>
+      </td>
+      <td class="px-4 py-3">${statusPill(p.status)}</td>
+    </tr>`;
+}
+
+// Paginasi tabel: 10 pekerjaan per halaman, halaman kembali ke 1 saat filter atau pencarian berubah.
+const PER_HALAMAN = 10;
+let halaman = 1;
+let kunciFilter = '';
+
+function renderPekerjaan() {
+  const q = document.getElementById('filter-search').value.trim().toLowerCase();
+  const kunci = `${statusAktif}|${q}`;
+  if (kunci !== kunciFilter) {
+    halaman = 1;
+    kunciFilter = kunci;
+  }
+
+  const list = semuaPekerjaan.filter((p) =>
+    (!statusAktif || p.status === statusAktif) &&
+    (!q || [p.pokmas, p.desa, p.kabupaten, p.tfl_nama || ''].join(' ').toLowerCase().includes(q)));
+
+  const totalHalaman = Math.max(1, Math.ceil(list.length / PER_HALAMAN));
+  halaman = Math.min(halaman, totalHalaman);
+  const mulai = (halaman - 1) * PER_HALAMAN;
+  const halamanIni = list.slice(mulai, mulai + PER_HALAMAN);
+
+  document.getElementById('pekerjaan-rows').innerHTML = halamanIni.length
+    ? halamanIni.map(rowHtml).join('')
+    : '<tr><td colspan="5" class="px-4 py-6 text-center text-ink3">Tidak ada pekerjaan yang cocok.</td></tr>';
+
+  const info = list.length
+    ? `Menampilkan ${mulai + 1}–${mulai + halamanIni.length} dari ${list.length} pekerjaan`
+    : 'Tidak ada pekerjaan';
+  document.getElementById('list-count').textContent =
+    list.length !== semuaPekerjaan.length ? `${info} (dari ${semuaPekerjaan.length} total)` : info;
+
+  renderPager(totalHalaman);
+}
+
+function renderPager(total) {
+  const box = document.getElementById('pager');
+  if (total <= 1) {
+    box.innerHTML = '';
+    return;
+  }
+  const tombol = (label, page, aktif, nonaktif) =>
+    `<button type="button" data-page="${page}" ${nonaktif ? 'disabled' : ''} class="h-11 min-w-[2.75rem] rounded-lg px-3 text-sm font-semibold ${aktif ? 'bg-primary text-white' : 'border border-line text-ink2 hover:bg-muted'} disabled:opacity-40">${label}</button>`;
+
+  // Tampilkan halaman pertama, terakhir, dan sekitar halaman aktif. Sisanya diganti "…".
+  let html = tombol('Sebelumnya', halaman - 1, false, halaman === 1);
+  let sebelumnya = 0;
+  for (let i = 1; i <= total; i++) {
+    if (i !== 1 && i !== total && Math.abs(i - halaman) > 1) continue;
+    if (sebelumnya && i - sebelumnya > 1) html += '<span class="px-1 text-ink3">…</span>';
+    html += tombol(i, i, i === halaman, false);
+    sebelumnya = i;
+  }
+  html += tombol('Berikutnya', halaman + 1, false, halaman === total);
+  box.innerHTML = html;
+}
+
+document.getElementById('pager').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-page]');
+  if (!b || b.disabled) return;
+  halaman = Number(b.dataset.page);
+  renderPekerjaan();
+});
+
+// Waktu relatif untuk feed. Server menyimpan waktu tanpa zona, dianggap waktu lokal browser.
+function relatif(iso) {
+  if (!iso) return '';
+  const menit = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (menit < 1) return 'baru saja';
+  if (menit < 60) return `${menit} mnt lalu`;
+  if (menit < 1440) return `${Math.round(menit / 60)} jam lalu`;
+  return new Date(iso).toLocaleDateString('id-ID');
+}
+
+function feedHtml(f) {
+  return `
+    <li class="flex gap-3 px-4 py-3">
+      <img src="/api/photos/${f.photo_id}/thumb" alt="" loading="lazy" class="h-12 w-12 shrink-0 rounded-lg bg-muted object-contain">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center justify-between gap-2">
+          <p class="truncate text-sm font-semibold">${esc(f.nama)}</p>
+          <span class="shrink-0 text-xs text-ink3">${relatif(f.taken_at)}</span>
+        </div>
+        <p class="text-sm text-primary">${BANGUNAN[f.building] || esc(f.building)} • tahap ${f.stage}%</p>
+        <p class="truncate text-xs text-ink3">${f.tfl_nama ? 'TFL ' + esc(f.tfl_nama) + ' • ' : ''}${esc(f.pokmas)}</p>
+      </div>
+    </li>`;
+}
+
+function renderKpi(s) {
+  document.getElementById('kpi-pekerjaan').textContent = angka(s.pekerjaan);
+  document.getElementById('kpi-aktif').textContent = `${angka(s.aktif)} aktif`;
+  document.getElementById('kpi-belum').textContent = `${angka(s.pekerjaan - s.aktif)} belum ada pemanfaat`;
+
+  document.getElementById('kpi-pemanfaat').textContent = angka(s.pemanfaat);
+  document.getElementById('kpi-target').textContent = angka(s.target_kk);
+  const terpenuhi = s.target_kk > 0 ? Math.round((s.pemanfaat / s.target_kk) * 1000) / 10 : 0;
+  document.getElementById('kpi-target-persen').textContent = `${terpenuhi}% terpenuhi`;
+  document.getElementById('kpi-sisa').textContent = `Sisa ${angka(Math.max(s.target_kk - s.pemanfaat, 0))} KK`;
+
+  document.getElementById('kpi-foto').textContent = angka(s.foto_terisi);
+  document.getElementById('kpi-foto-persen').textContent = `${s.persen}% dari target`;
+  document.getElementById('kpi-sel').textContent = `${angka(s.sel_total)} sel`;
+  document.getElementById('kpi-bar').style.width = `${Math.min(s.persen, 100)}%`;
+
+  document.getElementById('kpi-lengkap').textContent = angka(s.lengkap);
+  document.getElementById('kpi-lengkap-sub').textContent =
+    s.pekerjaan ? `${Math.round((s.lengkap / s.pekerjaan) * 1000) / 10}%` : '';
+}
+
+document.querySelectorAll('.status-chip').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    statusAktif = btn.dataset.status;
+    document.querySelectorAll('.status-chip').forEach((b) => {
+      const aktif = b === btn;
+      b.classList.toggle('bg-primary', aktif);
+      b.classList.toggle('text-white', aktif);
+      b.classList.toggle('bg-muted', !aktif);
+      b.classList.toggle('text-ink2', !aktif);
+    });
+    renderPekerjaan();
+  });
+});
+document.getElementById('filter-search').addEventListener('input', renderPekerjaan);
+
+(async () => {
+  try {
+    const user = await requireAuth();
+    document.getElementById('user-name').textContent = user.username;
+    document.getElementById('user-role').textContent =
+      user.role === 'admin' ? 'Admin' : user.role === 'korwil' ? 'Koordinator Wilayah' : 'Tenaga Fasilitator';
+    if (user.role === 'admin') {
+      document.getElementById('menu-tambah').hidden = false;
+      document.getElementById('btn-tambah').hidden = false;
+    }
+
+    const data = await api('GET', '/api/dashboard');
+    renderKpi(data.stats);
+    semuaPekerjaan = data.pekerjaan;
+    renderPekerjaan();
+
+    const feed = document.getElementById('feed-list');
+    feed.innerHTML = data.feed.length
+      ? data.feed.map(feedHtml).join('')
+      : '<li class="px-4 py-6 text-center text-sm text-ink3">Belum ada unggahan foto.</li>';
+
+    document.getElementById('sync-time').textContent =
+      `Diperbarui ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`;
+  } catch (err) {
+    showError(errorBox, err.message);
+  }
+})();
+</script>
+</body>
+</html>
