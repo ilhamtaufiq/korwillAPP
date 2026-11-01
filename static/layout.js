@@ -13,13 +13,6 @@
     { href: '/log-dokumentasi.html', label: 'Log Dokumentasi', icon: 'photo_camera', adminOnly: true, id: 'menu-log' },
     { href: '/ganti-sandi.html', label: 'Ganti Kata Sandi', icon: 'key' },
   ];
-  const SEGERA = [
-    { label: 'Verifikasi Lapangan', icon: 'fact_check' },
-    { label: 'Data Fasilitator', icon: 'badge' },
-    { label: 'Progres Fisik Tangki', icon: 'construction' },
-    { label: 'Laporan Kinerja', icon: 'analytics' },
-    { label: 'Pengaturan Korwil', icon: 'tune' },
-  ];
 
   function injectStyle() {
     const style = document.createElement('style');
@@ -84,7 +77,6 @@
             <p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Menu Utama</p>
             <nav class="flex flex-col gap-1">
               ${NAV.filter((i) => i.href !== '/ganti-sandi.html').map((i) => navItem(i, isActive(i.href))).join('')}
-              ${SEGERA.map((i) => navItem(i, false)).join('')}
             </nav>
           </div>
           <div class="px-4 py-2">
@@ -92,12 +84,6 @@
             <nav class="flex flex-col gap-1">
               ${NAV.filter((i) => i.href === '/ganti-sandi.html').map((i) => navItem(i, isActive(i.href))).join('')}
             </nav>
-          </div>
-        </div>
-        <div class="border-t border-line p-4">
-          <div class="flex items-center gap-2">
-            <div class="h-2 w-2 shrink-0 rounded-full bg-primary"></div>
-            <span class="section-label text-xs text-ink3">Sistem Sinkron Online</span>
           </div>
         </div>
       </aside>
