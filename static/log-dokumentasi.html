@@ -87,6 +87,7 @@ function baris(item) {
 
 async function muat() {
   hideError(errorBox);
+  logBody.innerHTML = skeletonRows(5, 8);
   try {
     const data = await api('GET', `/api/log?halaman=${halaman}`);
     totalHalaman = Math.max(1, Math.ceil(data.total / PER_HALAMAN));

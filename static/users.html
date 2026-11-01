@@ -143,6 +143,7 @@ function renderUsers() {
 }
 
 async function loadUsers() {
+  document.getElementById('user-rows').innerHTML = skeletonRows(6);
   semuaUser = await api('GET', '/api/users');
   renderUsers();
 }

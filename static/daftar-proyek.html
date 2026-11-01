@@ -122,6 +122,7 @@ function renderList() {
 }
 
 async function loadProjects() {
+  document.getElementById('project-list').innerHTML = skeletonCards(6);
   allProjects = await api('GET', '/api/projects');
   fillSelect('filter-kabupaten', 'Semua kabupaten', [...new Set(allProjects.map((p) => p.kabupaten))].sort());
   fillSelect('filter-kegiatan', 'Semua kegiatan', [...new Set(allProjects.map((p) => p.kegiatan))].sort());

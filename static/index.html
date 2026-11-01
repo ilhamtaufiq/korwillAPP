@@ -344,6 +344,8 @@ document.getElementById('filter-search').addEventListener('input', renderPekerja
       document.getElementById('btn-tambah').hidden = false;
     }
 
+    document.getElementById('pekerjaan-rows').innerHTML = skeletonRows(6);
+    document.getElementById('feed-list').innerHTML = skeletonItems(4);
     const data = await api('GET', '/api/dashboard');
     renderKpi(data.stats);
     semuaPekerjaan = data.pekerjaan;

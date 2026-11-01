@@ -181,6 +181,7 @@ function beneficiaryRows(b, photoIds, count) {
 }
 
 async function loadAll() {
+  document.getElementById('beneficiary-rows').innerHTML = skeletonRows(10);
   const [project, beneficiaries, photos] = await Promise.all([
     api('GET', `/api/projects/${projectId}`),
     api('GET', `/api/projects/${projectId}/beneficiaries`),
