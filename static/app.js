@@ -1,5 +1,15 @@
 // Helper bersama untuk semua halaman. Dimuat oleh setiap halaman di folder static.
 
+// Halaman yang butuh login disembunyikan dulu. Ditampilkan setelah requireAuth berhasil,
+// supaya tidak sempat terlihat sebelum diarahkan ke halaman masuk.
+(function () {
+  if (location.pathname === '/login.html') return;
+  const hide = document.createElement('style');
+  hide.id = 'auth-hide';
+  hide.textContent = 'body { visibility: hidden; }';
+  document.head.appendChild(hide);
+})();
+
 // Atribut hidden harus selalu menyembunyikan elemen. Tanpa ini, kelas flex dari Tailwind menimpanya.
 (function () {
   const style = document.createElement('style');
@@ -33,6 +43,7 @@ async function requireAuth() {
     location.href = '/login.html';
     throw new Error('Belum login');
   }
+  document.getElementById('auth-hide')?.remove();
   if (user.must_change_password) {
     showPasswordNotice();
   }
