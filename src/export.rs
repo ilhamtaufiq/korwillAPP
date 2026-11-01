@@ -114,6 +114,7 @@ pub async fn export_pdf(
             .chars()
             .take(CATATAN_MAX_CHARS)
             .collect(),
+        tahun: project.tahun,
     };
 
     // Render PDF cukup berat, jadi jalan di thread blocking.

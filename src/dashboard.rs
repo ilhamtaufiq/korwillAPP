@@ -18,6 +18,7 @@ struct PekerjaanRow {
     desa: String,
     kabupaten: String,
     tfl_nama: Option<String>,
+    fm_pemberdayaan_nama: Option<String>,
     target_sasaran: u32,
     pemanfaat: i64,
     foto: i64,
@@ -57,6 +58,7 @@ pub struct Pekerjaan {
     desa: String,
     kabupaten: String,
     tfl_nama: Option<String>,
+    fm_pemberdayaan_nama: Option<String>,
     pemanfaat: i64,
     foto: i64,
     sel_total: i64,
@@ -109,7 +111,7 @@ pub async fn get(State(st): State<AppState>, session: Session) -> Result<Json<Da
     let is_admin = user.role == "admin";
 
     let rows = sqlx::query_as::<_, PekerjaanRow>(
-        "SELECT p.id, p.judul, p.pokmas, p.desa, p.kabupaten, p.tfl_nama, p.target_sasaran, \
+        "SELECT p.id, p.judul, p.pokmas, p.desa, p.kabupaten, p.tfl_nama, p.fm_pemberdayaan_nama, p.target_sasaran, \
          (SELECT COUNT(*) FROM beneficiaries b WHERE b.project_id = p.id AND b.deleted_at IS NULL) AS pemanfaat, \
          (SELECT COUNT(*) FROM photos ph JOIN beneficiaries b ON b.id = ph.beneficiary_id \
           WHERE b.project_id = p.id AND b.deleted_at IS NULL AND ph.deleted_at IS NULL) AS foto \
@@ -178,6 +180,7 @@ pub async fn get(State(st): State<AppState>, session: Session) -> Result<Json<Da
                 desa: r.desa.clone(),
                 kabupaten: r.kabupaten.clone(),
                 tfl_nama: r.tfl_nama.clone(),
+                fm_pemberdayaan_nama: r.fm_pemberdayaan_nama.clone(),
                 pemanfaat: r.pemanfaat,
                 foto: r.foto,
                 sel_total,

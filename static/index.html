@@ -6,6 +6,7 @@
 <title>Ringkasan | KorwilAPP</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/css/app.css">
 <script src="/app.js"></script>
 <script src="/layout.js"></script>
@@ -124,6 +125,7 @@
               <tr>
                 <th class="px-4 py-2">Pokmas &amp; Lokasi</th>
                 <th class="px-4 py-2">FM Teknik</th>
+                <th class="px-4 py-2">FM Pemberdayaan</th>
                 <th class="px-4 py-2 text-center">Pemanfaat</th>
                 <th class="px-4 py-2">Progres Foto</th>
                 <th class="px-4 py-2">Status</th>
@@ -194,6 +196,7 @@ function rowHtml(p) {
         <p class="text-xs text-ink3">Desa ${esc(p.desa)}, ${esc(p.kabupaten)}</p>
       </td>
       <td class="px-4 py-3 text-ink2">${p.tfl_nama ? esc(p.tfl_nama) : '<span class="text-ink3">-</span>'}</td>
+      <td class="px-4 py-3 text-ink2">${p.fm_pemberdayaan_nama ? esc(p.fm_pemberdayaan_nama) : '<span class="text-ink3">-</span>'}</td>
       <td class="px-4 py-3 text-center font-semibold">${angka(p.pemanfaat)}</td>
       <td class="px-4 py-3">
         <div class="flex items-center gap-2">
@@ -220,7 +223,7 @@ function renderPekerjaan() {
 
   const list = semuaPekerjaan.filter((p) =>
     (!statusAktif || p.status === statusAktif) &&
-    (!q || [p.pokmas, p.desa, p.kabupaten, p.tfl_nama || ''].join(' ').toLowerCase().includes(q)));
+    (!q || [p.pokmas, p.desa, p.kabupaten, p.tfl_nama || '', p.fm_pemberdayaan_nama || ''].join(' ').toLowerCase().includes(q)));
 
   const totalHalaman = Math.max(1, Math.ceil(list.length / PER_HALAMAN));
   halaman = Math.min(halaman, totalHalaman);

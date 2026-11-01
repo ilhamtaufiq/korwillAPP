@@ -53,6 +53,8 @@ pub struct RenderOptions {
     pub show_empty: bool,
     /// Catatan tambahan di bawah tabel. Kosong berarti tidak ditampilkan.
     pub catatan: String,
+    /// Tahun anggaran pekerjaan, ditampilkan di judul.
+    pub tahun: u16,
 }
 
 /// Membuat PDF dokumentasi dan mengembalikan isinya.
@@ -88,7 +90,7 @@ pub fn render(judul: &str, info: &str, rows: &[Pemanfaat], opts: &RenderOptions)
     }
 
     for (i, (layer, chunk)) in layers.iter().zip(chunks.iter()).enumerate() {
-        draw_title(layer, &font_bold);
+        draw_title(layer, &font_bold, opts.tahun);
         draw_header(layer, &font_bold, table_top);
 
         let mut group_top = table_top - HEADER_H;
@@ -102,7 +104,7 @@ pub fn render(judul: &str, info: &str, rows: &[Pemanfaat], opts: &RenderOptions)
     if !catatan.is_empty() {
         if note_new_page {
             let layer = &layers[total - 1];
-            draw_title(layer, &font_bold);
+            draw_title(layer, &font_bold, opts.tahun);
             text_left(layer, &font, 8.0, MARGIN, table_top - 8.0, &format!("Catatan: {catatan}"));
             draw_footer(layer, &font, info, total, total);
         } else {
@@ -122,9 +124,15 @@ pub fn render(judul: &str, info: &str, rows: &[Pemanfaat], opts: &RenderOptions)
     buf.into_inner().map_err(|e| e.to_string())
 }
 
-fn draw_title(layer: &PdfLayerReference, font: &IndirectFontRef) {
+fn draw_title(layer: &PdfLayerReference, font: &IndirectFontRef, tahun: u16) {
     text_center(layer, font, 11.0, PAGE_H - MARGIN - 5.0, "DOKUMENTASI PELAKSANAAN KONSTRUKSI");
-    text_center(layer, font, 11.0, PAGE_H - MARGIN - 10.5, "KEGIATAN SANIMAS");
+    text_center(
+        layer,
+        font,
+        11.0,
+        PAGE_H - MARGIN - 10.5,
+        &format!("KEGIATAN SANIMAS TAHUN ANGGARAN {tahun}"),
+    );
 }
 
 fn draw_header(layer: &PdfLayerReference, font: &IndirectFontRef, top: f32) {

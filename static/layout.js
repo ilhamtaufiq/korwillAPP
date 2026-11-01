@@ -65,9 +65,7 @@
       <aside id="sidebar">
         <div class="flex flex-col">
           <div class="flex h-16 items-center gap-3 border-b border-line px-4">
-            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-white">
-              <span class="material-symbols-outlined">water_drop</span>
-            </div>
+            <img src="/logo.svg" alt="" class="h-8 w-8 shrink-0 rounded-lg">
             <div class="brand-text flex flex-col">
               <span class="text-sm font-bold leading-none">KorwilAPP</span>
               <span class="text-xs text-ink3">Sanimas Wilayah</span>
