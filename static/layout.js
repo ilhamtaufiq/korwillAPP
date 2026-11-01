@@ -95,7 +95,7 @@
           <div class="hidden items-center gap-2 text-xs text-ink3 md:flex">
             <span class="material-symbols-outlined text-[16px]">map</span>
             <span>Wilayah Operasional</span><span>/</span>
-            <span class="font-semibold text-ink">Korwil III - Jawa Barat</span>
+            <span class="font-semibold text-ink">Korwil I - Jawa Barat</span>
           </div>
         </div>
         <div class="flex items-center gap-3">
