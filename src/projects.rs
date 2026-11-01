@@ -13,11 +13,12 @@ use crate::{
     auth::{current_user, User},
     error::AppError,
     members::link_tfl_by_name,
+    riwayat::{self, AKSI_CREATE, AKSI_DELETE, AKSI_UPDATE, ENTITAS_PEKERJAAN, ENTITAS_PEMANFAAT},
     AppState,
 };
 
 pub const PROJECT_COLS: &str = "p.id, p.judul, p.kegiatan, p.pokmas, p.desa, p.kecamatan, p.kabupaten, p.tahun, \
-     p.kode_proyek, p.target_sasaran, p.korwil_nama, p.tfl_nama, p.pagu_dana";
+     p.kode_proyek, p.target_sasaran, p.korwil_nama, p.tfl_nama, p.fm_pemberdayaan_nama, p.pagu_dana";
 
 #[derive(Serialize, sqlx::FromRow)]
 pub struct Project {
@@ -33,6 +34,7 @@ pub struct Project {
     pub target_sasaran: u32,
     pub korwil_nama: Option<String>,
     pub tfl_nama: Option<String>,
+    pub fm_pemberdayaan_nama: Option<String>,
     pub pagu_dana: Option<u64>,
 }
 
@@ -52,6 +54,8 @@ pub struct ProjectInput {
     korwil_nama: Option<String>,
     #[serde(default)]
     tfl_nama: Option<String>,
+    #[serde(default)]
+    fm_pemberdayaan_nama: Option<String>,
     #[serde(default)]
     pagu_dana: Option<u64>,
 }
@@ -140,31 +144,39 @@ pub fn require_admin(user: &User) -> Result<(), AppError> {
 }
 
 /// Admin boleh semua proyek. TFL hanya proyek yang ada di project_members.
-/// Proyek yang tidak boleh diakses dibalas 404 agar keberadaannya tidak bocor.
+/// Proyek yang tidak boleh diakses, atau sudah dihapus, dibalas 404 agar keberadaannya tidak bocor.
 pub async fn ensure_project_access(db: &MySqlPool, user: &User, project_id: u64) -> Result<(), AppError> {
-    if user.role == "admin" {
-        return Ok(());
-    }
-    let found: Option<i64> =
-        sqlx::query_scalar("SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ?")
+    let found: Option<i64> = if user.role == "admin" {
+        sqlx::query_scalar("SELECT 1 FROM projects WHERE id = ? AND deleted_at IS NULL")
             .bind(project_id)
-            .bind(user.id)
             .fetch_optional(db)
-            .await?;
+            .await?
+    } else {
+        sqlx::query_scalar(
+            "SELECT 1 FROM project_members m JOIN projects p ON p.id = m.project_id \
+             WHERE m.project_id = ? AND m.user_id = ? AND p.deleted_at IS NULL",
+        )
+        .bind(project_id)
+        .bind(user.id)
+        .fetch_optional(db)
+        .await?
+    };
     found.map(|_| ()).ok_or(AppError::NotFound)
 }
 
 async fn fetch_project(db: &MySqlPool, id: u64) -> Result<Project, AppError> {
-    sqlx::query_as::<_, Project>(&format!("SELECT {PROJECT_COLS} FROM projects p WHERE p.id = ?"))
-        .bind(id)
-        .fetch_optional(db)
-        .await?
-        .ok_or(AppError::NotFound)
+    sqlx::query_as::<_, Project>(&format!(
+        "SELECT {PROJECT_COLS} FROM projects p WHERE p.id = ? AND p.deleted_at IS NULL"
+    ))
+    .bind(id)
+    .fetch_optional(db)
+    .await?
+    .ok_or(AppError::NotFound)
 }
 
 async fn fetch_beneficiary(db: &MySqlPool, id: u64) -> Result<Beneficiary, AppError> {
     sqlx::query_as::<_, Beneficiary>(
-        "SELECT id, project_id, no, nama, rt_rw_dusun, nik FROM beneficiaries WHERE id = ?",
+        "SELECT id, project_id, no, nama, rt_rw_dusun, nik FROM beneficiaries WHERE id = ? AND deleted_at IS NULL",
     )
     .bind(id)
     .fetch_optional(db)
@@ -177,14 +189,16 @@ async fn fetch_beneficiary(db: &MySqlPool, id: u64) -> Result<Beneficiary, AppEr
 pub async fn list(State(st): State<AppState>, session: Session) -> Result<Json<Vec<Project>>, AppError> {
     let user = current_user(&session, &st.db).await?;
     let rows = if user.role == "admin" {
-        sqlx::query_as::<_, Project>(&format!("SELECT {PROJECT_COLS} FROM projects p ORDER BY p.id DESC"))
+        sqlx::query_as::<_, Project>(&format!(
+            "SELECT {PROJECT_COLS} FROM projects p WHERE p.deleted_at IS NULL ORDER BY p.id DESC"
+        ))
             .fetch_all(&st.db)
             .await?
     } else {
         sqlx::query_as::<_, Project>(&format!(
             "SELECT {PROJECT_COLS} FROM projects p \
              JOIN project_members m ON m.project_id = p.id \
-             WHERE m.user_id = ? ORDER BY p.id DESC"
+             WHERE m.user_id = ? AND p.deleted_at IS NULL ORDER BY p.id DESC"
         ))
         .bind(user.id)
         .fetch_all(&st.db)
@@ -218,6 +232,16 @@ pub async fn create(
     .await?;
 
     let project = fetch_project(&st.db, res.last_insert_id()).await?;
+    riwayat::catat(
+        &st.db,
+        &user,
+        AKSI_CREATE,
+        ENTITAS_PEKERJAAN,
+        project.id,
+        Some(project.id),
+        &format!("Pekerjaan '{}' dibuat", project.judul),
+    )
+    .await?;
     Ok((StatusCode::CREATED, Json(project)))
 }
 
@@ -243,7 +267,7 @@ pub async fn update(
     fetch_project(&st.db, id).await?;
 
     sqlx::query(
-        "UPDATE projects SET judul = ?, kegiatan = ?, pokmas = ?, desa = ?, kecamatan = ?, kabupaten = ?, tahun = ?, kode_proyek = ?, target_sasaran = ?, korwil_nama = ?, tfl_nama = ?, pagu_dana = ? WHERE id = ?",
+        "UPDATE projects SET judul = ?, kegiatan = ?, pokmas = ?, desa = ?, kecamatan = ?, kabupaten = ?, tahun = ?, kode_proyek = ?, target_sasaran = ?, korwil_nama = ?, tfl_nama = ?, fm_pemberdayaan_nama = ?, pagu_dana = ? WHERE id = ? AND deleted_at IS NULL",
     )
     .bind(input.judul.trim())
     .bind(input.kegiatan.trim())
@@ -256,6 +280,7 @@ pub async fn update(
     .bind(input.target_sasaran)
     .bind(opt_trim(&input.korwil_nama))
     .bind(opt_trim(&input.tfl_nama))
+    .bind(opt_trim(&input.fm_pemberdayaan_nama))
     .bind(input.pagu_dana)
     .bind(id)
     .execute(&st.db)
@@ -268,9 +293,25 @@ pub async fn update(
     if let Some(tfl) = opt_trim(&input.tfl_nama) {
         link_tfl_by_name(&st.db, id, &tfl).await?;
     }
-    Ok(Json(fetch_project(&st.db, id).await?))
+    if let Some(fm) = opt_trim(&input.fm_pemberdayaan_nama) {
+        link_tfl_by_name(&st.db, id, &fm).await?;
+    }
+    let project = fetch_project(&st.db, id).await?;
+    riwayat::catat(
+        &st.db,
+        &user,
+        AKSI_UPDATE,
+        ENTITAS_PEKERJAAN,
+        id,
+        Some(id),
+        &format!("Pekerjaan '{}' diubah", project.judul),
+    )
+    .await?;
+    Ok(Json(project))
 }
 
+/// Hapus lunak: pekerjaan hanya diberi tanda waktu dan bisa dipulihkan dari riwayat.
+/// Pemanfaat dan foto di dalamnya ikut tersembunyi karena pekerjaan induknya terhapus.
 pub async fn delete(
     State(st): State<AppState>,
     session: Session,
@@ -278,14 +319,22 @@ pub async fn delete(
 ) -> Result<StatusCode, AppError> {
     let user = current_user(&session, &st.db).await?;
     require_admin(&user)?;
+    let project = fetch_project(&st.db, id).await?;
 
-    let res = sqlx::query("DELETE FROM projects WHERE id = ?")
+    sqlx::query("UPDATE projects SET deleted_at = NOW() WHERE id = ?")
         .bind(id)
         .execute(&st.db)
         .await?;
-    if res.rows_affected() == 0 {
-        return Err(AppError::NotFound);
-    }
+    riwayat::catat(
+        &st.db,
+        &user,
+        AKSI_DELETE,
+        ENTITAS_PEKERJAAN,
+        id,
+        Some(id),
+        &format!("Pekerjaan '{}' dihapus", project.judul),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -326,7 +375,7 @@ pub async fn list_beneficiaries(
     ensure_project_access(&st.db, &user, project_id).await?;
 
     let rows = sqlx::query_as::<_, Beneficiary>(
-        "SELECT id, project_id, no, nama, rt_rw_dusun, nik FROM beneficiaries WHERE project_id = ? ORDER BY no",
+        "SELECT id, project_id, no, nama, rt_rw_dusun, nik FROM beneficiaries WHERE project_id = ? AND deleted_at IS NULL ORDER BY no",
     )
     .bind(project_id)
     .fetch_all(&st.db)
@@ -358,6 +407,16 @@ pub async fn create_beneficiary(
     .await?;
 
     let row = fetch_beneficiary(&st.db, res.last_insert_id()).await?;
+    riwayat::catat(
+        &st.db,
+        &user,
+        AKSI_CREATE,
+        ENTITAS_PEMANFAAT,
+        row.id,
+        Some(project_id),
+        &format!("Pemanfaat '{}' ditambahkan", row.nama),
+    )
+    .await?;
     Ok((StatusCode::CREATED, Json(row)))
 }
 
@@ -372,16 +431,28 @@ pub async fn update_beneficiary(
     ensure_project_access(&st.db, &user, current.project_id).await?;
     input.validate()?;
 
-    sqlx::query("UPDATE beneficiaries SET nama = ?, rt_rw_dusun = ?, nik = ? WHERE id = ?")
+    sqlx::query("UPDATE beneficiaries SET nama = ?, rt_rw_dusun = ?, nik = ? WHERE id = ? AND deleted_at IS NULL")
         .bind(input.nama.trim())
         .bind(input.rt_rw_dusun.trim())
         .bind(opt_trim(&input.nik))
         .bind(id)
         .execute(&st.db)
         .await?;
-    Ok(Json(fetch_beneficiary(&st.db, id).await?))
+    let row = fetch_beneficiary(&st.db, id).await?;
+    riwayat::catat(
+        &st.db,
+        &user,
+        AKSI_UPDATE,
+        ENTITAS_PEMANFAAT,
+        id,
+        Some(current.project_id),
+        &format!("Pemanfaat '{}' diubah", row.nama),
+    )
+    .await?;
+    Ok(Json(row))
 }
 
+/// Hapus lunak: pemanfaat bisa dipulihkan dari riwayat. Foto-fotonya ikut tersembunyi.
 pub async fn delete_beneficiary(
     State(st): State<AppState>,
     session: Session,
@@ -391,10 +462,20 @@ pub async fn delete_beneficiary(
     let current = fetch_beneficiary(&st.db, id).await?;
     ensure_project_access(&st.db, &user, current.project_id).await?;
 
-    sqlx::query("DELETE FROM beneficiaries WHERE id = ?")
+    sqlx::query("UPDATE beneficiaries SET deleted_at = NOW() WHERE id = ?")
         .bind(id)
         .execute(&st.db)
         .await?;
+    riwayat::catat(
+        &st.db,
+        &user,
+        AKSI_DELETE,
+        ENTITAS_PEMANFAAT,
+        id,
+        Some(current.project_id),
+        &format!("Pemanfaat '{}' dihapus", current.nama),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -446,13 +527,23 @@ pub async fn import_beneficiaries(
 
     for (nama, alamat) in &parsed {
         next_no += 1;
-        sqlx::query("INSERT INTO beneficiaries (project_id, no, nama, rt_rw_dusun) VALUES (?, ?, ?, ?)")
+        let res = sqlx::query("INSERT INTO beneficiaries (project_id, no, nama, rt_rw_dusun) VALUES (?, ?, ?, ?)")
             .bind(project_id)
             .bind(next_no)
             .bind(nama)
             .bind(alamat)
             .execute(&mut *tx)
             .await?;
+        riwayat::catat(
+            &mut *tx,
+            &user,
+            AKSI_CREATE,
+            ENTITAS_PEMANFAAT,
+            res.last_insert_id(),
+            Some(project_id),
+            &format!("Pemanfaat '{nama}' ditambahkan dari impor teks"),
+        )
+        .await?;
     }
     tx.commit().await?;
 

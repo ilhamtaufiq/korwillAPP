@@ -186,7 +186,7 @@ tailwind.config = { theme: { extend: {
             <h2 class="font-semibold">Daftar Pekerjaan Aktif</h2>
             <p class="text-xs text-ink3">Monitoring pelaksanaan fisik dan kelengkapan foto bilik dan tangki septik.</p>
           </div>
-          <input id="filter-search" type="search" placeholder="Cari pokmas, desa, atau TFL..."
+          <input id="filter-search" type="search" placeholder="Cari pokmas, desa, atau FM..."
             class="h-11 w-full rounded-lg border border-line bg-white px-4 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none md:w-64">
         </div>
         <div class="flex flex-wrap gap-2 border-b border-line px-4 py-3 text-xs font-semibold">
@@ -200,7 +200,7 @@ tailwind.config = { theme: { extend: {
             <thead class="bg-muted text-xs font-semibold text-ink2">
               <tr>
                 <th class="px-4 py-2">Pokmas &amp; Lokasi</th>
-                <th class="px-4 py-2">TFL</th>
+                <th class="px-4 py-2">FM Teknik</th>
                 <th class="px-4 py-2 text-center">Pemanfaat</th>
                 <th class="px-4 py-2">Progres Foto</th>
                 <th class="px-4 py-2">Status</th>
@@ -367,7 +367,7 @@ function feedHtml(f) {
           <span class="shrink-0 text-xs text-ink3">${relatif(f.taken_at)}</span>
         </div>
         <p class="text-sm text-primary">${BANGUNAN[f.building] || esc(f.building)} • tahap ${f.stage}%</p>
-        <p class="truncate text-xs text-ink3">${f.tfl_nama ? 'TFL ' + esc(f.tfl_nama) + ' • ' : ''}${esc(f.pokmas)}</p>
+        <p class="truncate text-xs text-ink3">${f.tfl_nama ? 'FM ' + esc(f.tfl_nama) + ' • ' : ''}${esc(f.pokmas)}</p>
       </div>
     </li>`;
 }

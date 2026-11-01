@@ -87,7 +87,7 @@ const errorBox = document.getElementById('error-message');
 let allProjects = [];
 
 function projectCard(p) {
-  const team = [p.korwil_nama && `Korwil ${p.korwil_nama}`, p.tfl_nama && `TFL ${p.tfl_nama}`]
+  const team = [p.korwil_nama && `Korwil ${p.korwil_nama}`, p.tfl_nama && `FM ${p.tfl_nama}`]
     .filter(Boolean)
     .join(' • ');
   const target = p.target_sasaran > 0
@@ -103,7 +103,7 @@ function projectCard(p) {
       <p class="mt-1 text-sm text-ink2">${esc(p.pokmas)}</p>
       <p class="mt-2 text-sm text-ink3">Desa ${esc(p.desa)}, Kec. ${esc(p.kecamatan)}, ${esc(p.kabupaten)}</p>
       <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs text-ink3">
-        <span>${esc(team) || 'Belum ada korwil atau TFL'}</span>
+        <span>${esc(team) || 'Belum ada korwil atau FM'}</span>
         <span class="font-semibold ${p.target_sasaran > 0 ? 'text-ink2' : 'text-ink3'}">${target}</span>
       </div>
     </a>`;
@@ -157,7 +157,7 @@ document.getElementById('filter-kegiatan').addEventListener('change', renderList
 (async () => {
   try {
     const user = await requireAuth();
-    document.getElementById('user-name').textContent = `${user.username} • ${user.role === 'admin' ? 'Admin' : 'TFL'}`;
+    document.getElementById('user-name').textContent = `${user.username} • ${user.role === 'admin' ? 'Admin' : 'FM'}`;
     if (user.role === 'admin') {
       document.getElementById('new-project').hidden = false;
       document.getElementById('import-section').hidden = false;

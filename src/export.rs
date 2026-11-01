@@ -45,7 +45,7 @@ pub async fn export_pdf(
     ensure_project_access(&st.db, &user, project_id).await?;
 
     let project = sqlx::query_as::<_, Project>(
-        "SELECT id, judul, kegiatan, pokmas, desa, kecamatan, kabupaten, tahun, kode_proyek, target_sasaran, korwil_nama, tfl_nama, pagu_dana FROM projects WHERE id = ?",
+        "SELECT id, judul, kegiatan, pokmas, desa, kecamatan, kabupaten, tahun, kode_proyek, target_sasaran, korwil_nama, tfl_nama, fm_pemberdayaan_nama, pagu_dana FROM projects WHERE id = ? AND deleted_at IS NULL",
     )
     .bind(project_id)
     .fetch_optional(&st.db)
@@ -53,7 +53,7 @@ pub async fn export_pdf(
     .ok_or(AppError::NotFound)?;
 
     let beneficiaries = sqlx::query_as::<_, Beneficiary>(
-        "SELECT id, project_id, no, nama, rt_rw_dusun, nik FROM beneficiaries WHERE project_id = ? ORDER BY no",
+        "SELECT id, project_id, no, nama, rt_rw_dusun, nik FROM beneficiaries WHERE project_id = ? AND deleted_at IS NULL ORDER BY no",
     )
     .bind(project_id)
     .fetch_all(&st.db)
@@ -61,7 +61,7 @@ pub async fn export_pdf(
 
     let photo_rows: Vec<(u64, String, u8, String)> = sqlx::query_as(
         "SELECT ph.beneficiary_id, CAST(ph.building AS CHAR), ph.stage, ph.thumb_path \
-         FROM photos ph JOIN beneficiaries b ON b.id = ph.beneficiary_id WHERE b.project_id = ?",
+         FROM photos ph JOIN beneficiaries b ON b.id = ph.beneficiary_id WHERE b.project_id = ? AND b.deleted_at IS NULL AND ph.deleted_at IS NULL",
     )
     .bind(project_id)
     .fetch_all(&st.db)

@@ -44,22 +44,7 @@ async function requireAuth() {
     throw new Error('Belum login');
   }
   document.getElementById('auth-hide')?.remove();
-  if (user.must_change_password) {
-    showPasswordNotice();
-  }
   return user;
-}
-
-// Notifikasi di bagian paling atas halaman untuk user yang masih memakai kata sandi awal.
-function showPasswordNotice() {
-  if (document.getElementById('password-notice')) return;
-  const bar = document.createElement('a');
-  bar.id = 'password-notice';
-  bar.href = '/ganti-sandi.html';
-  bar.className =
-    'block border-b border-danger-line bg-danger-soft px-4 py-2 text-center text-sm font-semibold text-danger';
-  bar.textContent = 'Kata sandi Anda masih kata sandi awal. Ketuk di sini untuk menggantinya sekarang.';
-  (document.getElementById('page') || document.body).prepend(bar);
 }
 
 async function logout() {

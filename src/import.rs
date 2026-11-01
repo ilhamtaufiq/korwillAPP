@@ -16,6 +16,7 @@ use crate::{
     error::{internal, AppError},
     members::link_tfl_by_name,
     projects::require_admin,
+    riwayat::{self, AKSI_CREATE, ENTITAS_PEKERJAAN},
     AppState,
 };
 
@@ -26,6 +27,8 @@ const COL_DESA: usize = 5;
 const COL_KMP: usize = 6;
 const COL_KORFAS: usize = 7;
 const COL_TFL: usize = 8;
+// Kolom "NAMA TFL / PENDAMPING LAPANGAN" dibagi dua: TEKNIK (8) dan PEMBERDAYAAN (9).
+const COL_FM_PEMBERDAYAAN: usize = 9;
 const COL_PAGU: usize = 10;
 
 #[derive(Deserialize)]
@@ -42,6 +45,7 @@ struct LapmingRow {
     pokmas: String,
     korwil: Option<String>,
     tfl: Option<String>,
+    fm_pemberdayaan: Option<String>,
     pagu: Option<u64>,
 }
 
@@ -102,9 +106,12 @@ pub async fn import_xlsx(
         if let Some(nama) = &row.tfl {
             ensure_account(&mut tx, nama, "tfl", &mut seen_usernames, &mut accounts).await?;
         }
+        if let Some(nama) = &row.fm_pemberdayaan {
+            ensure_account(&mut tx, nama, "tfl", &mut seen_usernames, &mut accounts).await?;
+        }
 
         let exists: Option<u64> = sqlx::query_scalar(
-            "SELECT id FROM projects WHERE kabupaten = ? AND kecamatan = ? AND desa = ? AND pokmas = ? AND kegiatan = ? AND tahun = ? LIMIT 1",
+            "SELECT id FROM projects WHERE kabupaten = ? AND kecamatan = ? AND desa = ? AND pokmas = ? AND kegiatan = ? AND tahun = ? AND deleted_at IS NULL LIMIT 1",
         )
         .bind(&row.kabupaten)
         .bind(&row.kecamatan)
@@ -115,15 +122,27 @@ pub async fn import_xlsx(
         .fetch_optional(&mut *tx)
         .await?;
         if let Some(id) = exists {
-            push_links(&mut links, id, row);
+            // Pekerjaan lama tidak ditimpa. FM Pemberdayaan hanya diisi kalau masih kosong,
+            // dan hanya kalau itu yang baru terisi akunnya ditautkan. Tautan yang sudah dicabut admin tidak dibuat ulang.
+            if let Some(fm) = &row.fm_pemberdayaan {
+                let terisi = sqlx::query("UPDATE projects SET fm_pemberdayaan_nama = ? WHERE id = ? AND fm_pemberdayaan_nama IS NULL")
+                    .bind(fm)
+                    .bind(id)
+                    .execute(&mut *tx)
+                    .await?
+                    .rows_affected();
+                if terisi > 0 {
+                    links.push((id, fm.clone()));
+                }
+            }
             already += 1;
             continue;
         }
 
         let judul: String = format!("Konstruksi {kegiatan} {}", row.pokmas).chars().take(255).collect();
         let res = sqlx::query(
-            "INSERT INTO projects (judul, kegiatan, pokmas, desa, kecamatan, kabupaten, tahun, korwil_nama, tfl_nama, pagu_dana) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO projects (judul, kegiatan, pokmas, desa, kecamatan, kabupaten, tahun, korwil_nama, tfl_nama, fm_pemberdayaan_nama, pagu_dana) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(judul)
         .bind(&kegiatan)
@@ -134,10 +153,22 @@ pub async fn import_xlsx(
         .bind(query.tahun)
         .bind(&row.korwil)
         .bind(&row.tfl)
+        .bind(&row.fm_pemberdayaan)
         .bind(row.pagu)
         .execute(&mut *tx)
         .await?;
-        push_links(&mut links, res.last_insert_id(), row);
+        let project_id = res.last_insert_id();
+        riwayat::catat(
+            &mut *tx,
+            &user,
+            AKSI_CREATE,
+            ENTITAS_PEKERJAAN,
+            project_id,
+            Some(project_id),
+            &format!("Pekerjaan '{}' diimpor dari Lapming", row.pokmas),
+        )
+        .await?;
+        push_links(&mut links, project_id, row);
         inserted += 1;
     }
     tx.commit().await?;
@@ -161,6 +192,9 @@ fn push_links(links: &mut Vec<(u64, String)>, project_id: u64, row: &LapmingRow)
         links.push((project_id, nama.clone()));
     }
     if let Some(nama) = &row.tfl {
+        links.push((project_id, nama.clone()));
+    }
+    if let Some(nama) = &row.fm_pemberdayaan {
         links.push((project_id, nama.clone()));
     }
 }
@@ -296,6 +330,7 @@ fn read_lapming(bytes: &[u8]) -> Result<(Vec<LapmingRow>, usize), AppError> {
                 pokmas,
                 korwil: non_empty(cell_text(cells, COL_KORFAS)),
                 tfl: non_empty(cell_text(cells, COL_TFL)),
+                fm_pemberdayaan: non_empty(cell_text(cells, COL_FM_PEMBERDAYAAN)),
                 pagu: cell_number(cells, COL_PAGU),
             });
         }

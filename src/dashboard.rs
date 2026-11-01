@@ -110,10 +110,11 @@ pub async fn get(State(st): State<AppState>, session: Session) -> Result<Json<Da
 
     let rows = sqlx::query_as::<_, PekerjaanRow>(
         "SELECT p.id, p.judul, p.pokmas, p.desa, p.kabupaten, p.tfl_nama, p.target_sasaran, \
-         (SELECT COUNT(*) FROM beneficiaries b WHERE b.project_id = p.id) AS pemanfaat, \
-         (SELECT COUNT(*) FROM photos ph JOIN beneficiaries b ON b.id = ph.beneficiary_id WHERE b.project_id = p.id) AS foto \
+         (SELECT COUNT(*) FROM beneficiaries b WHERE b.project_id = p.id AND b.deleted_at IS NULL) AS pemanfaat, \
+         (SELECT COUNT(*) FROM photos ph JOIN beneficiaries b ON b.id = ph.beneficiary_id \
+          WHERE b.project_id = p.id AND b.deleted_at IS NULL AND ph.deleted_at IS NULL) AS foto \
          FROM projects p \
-         WHERE (? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)) \
+         WHERE p.deleted_at IS NULL AND (? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)) \
          ORDER BY p.id DESC",
     )
     .bind(is_admin)
@@ -126,7 +127,8 @@ pub async fn get(State(st): State<AppState>, session: Session) -> Result<Json<Da
          FROM photos ph \
          JOIN beneficiaries b ON b.id = ph.beneficiary_id \
          JOIN projects p ON p.id = b.project_id \
-         WHERE (? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)) \
+         WHERE ph.deleted_at IS NULL AND b.deleted_at IS NULL AND p.deleted_at IS NULL \
+         AND (? OR p.id IN (SELECT project_id FROM project_members WHERE user_id = ?)) \
          ORDER BY ph.taken_at DESC, ph.id DESC \
          LIMIT ?",
     )

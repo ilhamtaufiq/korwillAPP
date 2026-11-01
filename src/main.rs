@@ -8,6 +8,7 @@ mod users;
 mod pdf;
 mod photos;
 mod projects;
+mod riwayat;
 
 use axum::{
     extract::DefaultBodyLimit,
@@ -65,6 +66,8 @@ fn router(state: AppState) -> Router {
         .route("/api/users", get(users::list).post(users::create))
         .route("/api/users/:id", put(users::update))
         .route("/api/users/:id/password", post(users::reset_password))
+        .route("/api/log", get(riwayat::list))
+        .route("/api/restore/:entitas/:id", post(riwayat::restore))
         // Foto dari HP bisa 5-10 MB, jadi batas default 2 MB terlalu kecil.
         .layer(DefaultBodyLimit::max(20 * 1024 * 1024))
         // Halaman statis (UI) dari folder static/. Dijalankan dari root proyek.

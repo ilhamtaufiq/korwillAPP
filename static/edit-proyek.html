@@ -82,8 +82,12 @@ tailwind.config = { theme: { extend: {
         <input id="korwil_nama" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="text-sm font-semibold text-ink2" for="tfl_nama">TFL</label>
+        <label class="text-sm font-semibold text-ink2" for="tfl_nama">FM Teknik</label>
         <input id="tfl_nama" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="fm_pemberdayaan_nama">FM Pemberdayaan</label>
+        <input id="fm_pemberdayaan_nama" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="text-sm font-semibold text-ink2" for="pagu_dana">Pagu dana (Rp)</label>
@@ -96,6 +100,12 @@ tailwind.config = { theme: { extend: {
       <button id="submit-btn" type="submit" class="h-11 flex-1 rounded-lg bg-primary font-semibold text-white hover:bg-primary-hover disabled:bg-muted disabled:text-ink3">Simpan Perubahan</button>
     </div>
   </form>
+
+  <section id="delete-section" hidden class="mt-6 flex flex-col gap-3 rounded-lg border border-danger-line bg-white p-4">
+    <h2 class="text-base font-semibold text-danger">Hapus Pekerjaan</h2>
+    <p class="text-sm text-ink3">Pekerjaan beserta pemanfaat dan fotonya disembunyikan. Data bisa dipulihkan dari Log Dokumentasi.</p>
+    <button id="delete-btn" type="button" class="h-11 rounded-lg border border-danger-line bg-danger-soft font-semibold text-danger hover:bg-danger-soft/70 disabled:opacity-50">Hapus Pekerjaan</button>
+  </section>
 </main>
 
 <script>
@@ -104,7 +114,7 @@ const successBox = document.getElementById('success-message');
 const form = document.getElementById('edit-form');
 const submitBtn = document.getElementById('submit-btn');
 const projectId = new URLSearchParams(location.search).get('id');
-const TEXT_FIELDS = ['judul', 'kegiatan', 'pokmas', 'desa', 'kecamatan', 'kabupaten', 'kode_proyek', 'korwil_nama', 'tfl_nama'];
+const TEXT_FIELDS = ['judul', 'kegiatan', 'pokmas', 'desa', 'kecamatan', 'kabupaten', 'kode_proyek', 'korwil_nama', 'tfl_nama', 'fm_pemberdayaan_nama'];
 const REQUIRED_TEXT = ['judul', 'kegiatan', 'pokmas', 'desa', 'kecamatan', 'kabupaten'];
 
 function fill(project) {
@@ -131,10 +141,26 @@ function fill(project) {
     }
     fill(await api('GET', `/api/projects/${projectId}`));
     form.hidden = false;
+    document.getElementById('delete-section').hidden = false;
   } catch (err) {
     showError(errorBox, err.message);
   }
 })();
+
+document.getElementById('delete-btn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const judul = document.getElementById('judul').value;
+  if (!confirm(`Hapus pekerjaan "${judul}"? Data bisa dipulihkan dari Log Dokumentasi.`)) return;
+  hideError(errorBox);
+  btn.disabled = true;
+  try {
+    await api('DELETE', `/api/projects/${projectId}`);
+    location.href = '/daftar-proyek.html';
+  } catch (err) {
+    showError(errorBox, err.message);
+    btn.disabled = false;
+  }
+});
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();

@@ -113,8 +113,8 @@ tailwind.config = { theme: { extend: {
 
     <aside class="flex flex-col gap-4">
       <section id="members-panel" hidden class="flex flex-col gap-3 rounded-lg border border-line bg-white p-4">
-        <h2 class="font-semibold">Akun TFL</h2>
-        <p class="text-xs text-ink3">Akun TFL yang namanya sama dengan kolom TFL dihubungkan otomatis. Tambahkan manual kalau namanya berbeda.</p>
+        <h2 class="font-semibold">Akun FM</h2>
+        <p class="text-xs text-ink3">Akun FM yang namanya sama dengan kolom FM Teknik atau FM Pemberdayaan dihubungkan otomatis. Tambahkan manual kalau namanya berbeda.</p>
         <ul id="member-list" class="divide-y divide-line"></ul>
         <div class="flex gap-2">
           <select id="member-select" class="h-11 min-w-0 flex-1 rounded-lg border border-line bg-white px-3 text-sm"></select>
@@ -217,7 +217,8 @@ async function loadAll() {
     `Target ${project.target_sasaran} KK • ${total ? `Foto terisi ${photos.length} / ${total}` : 'Belum ada pemanfaat'}`;
   const team = [
     project.korwil_nama && `Korwil: ${project.korwil_nama}`,
-    project.tfl_nama && `TFL: ${project.tfl_nama}`,
+    project.tfl_nama && `FM Teknik: ${project.tfl_nama}`,
+    project.fm_pemberdayaan_nama && `FM Pemberdayaan: ${project.fm_pemberdayaan_nama}`,
     project.pagu_dana && `Pagu: Rp ${Number(project.pagu_dana).toLocaleString('id-ID')}`,
   ].filter(Boolean);
   document.getElementById('project-team').textContent = team.join(' • ');
@@ -238,7 +239,7 @@ async function loadMembers() {
           <span>${esc(m.nama || m.username)} <span class="text-ink3">(${esc(m.username)})</span></span>
           <button data-user="${m.id}" class="member-remove h-11 rounded-lg px-2 font-semibold text-danger hover:bg-danger-soft">Hapus</button>
         </li>`).join('')
-    : '<li class="py-2 text-sm text-ink3">Belum ada akun TFL terhubung.</li>';
+    : '<li class="py-2 text-sm text-ink3">Belum ada akun FM terhubung.</li>';
 
   const linked = new Set(members.map((m) => m.id));
   const options = tfls
@@ -246,7 +247,7 @@ async function loadMembers() {
     .map((t) => `<option value="${t.id}">${esc(t.nama || t.username)}</option>`)
     .join('');
   document.getElementById('member-select').innerHTML =
-    options || '<option value="">Tidak ada akun TFL lagi</option>';
+    options || '<option value="">Tidak ada akun FM lagi</option>';
 }
 
 document.getElementById('member-list').addEventListener('click', async (e) => {
@@ -447,7 +448,7 @@ document.getElementById('beneficiary-rows').addEventListener('click', async (e) 
   const cell = e.target.closest('.photo-cell');
   const remove = e.target.closest('.remove-btn');
   if (remove) {
-    if (!confirm(`Hapus ${remove.dataset.nama} beserta fotonya?`)) return;
+    if (!confirm(`Hapus ${remove.dataset.nama} beserta fotonya? Data bisa dipulihkan dari Log Dokumentasi.`)) return;
     hideAll();
     try {
       await api('DELETE', `/api/beneficiaries/${remove.dataset.remove}`);
@@ -490,7 +491,7 @@ document.addEventListener('click', async (e) => {
   }
   if (!e.target.closest('#preview-delete')) return;
   if (!previewCell) return;
-  if (!confirm('Hapus foto di sel ini?')) return;
+  if (!confirm('Hapus foto di sel ini? Foto bisa dipulihkan dari Log Dokumentasi.')) return;
   const [bid, key, stage] = previewCell.split('|');
   hideAll();
   try {

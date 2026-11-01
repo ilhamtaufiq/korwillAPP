@@ -11,13 +11,13 @@
     { href: '/daftar-proyek.html', label: 'Daftar Pekerjaan', icon: 'construction' },
     { href: '/tambah-proyek.html', label: 'Tambah Pekerjaan', icon: 'add_circle', adminOnly: true, id: 'menu-tambah' },
     { href: '/users.html', label: 'Daftar User', icon: 'group', adminOnly: true, id: 'menu-users' },
+    { href: '/log-dokumentasi.html', label: 'Log Dokumentasi', icon: 'photo_camera', adminOnly: true, id: 'menu-log' },
     { href: '/ganti-sandi.html', label: 'Ganti Kata Sandi', icon: 'key' },
   ];
   const SEGERA = [
     { label: 'Verifikasi Lapangan', icon: 'fact_check' },
     { label: 'Data Fasilitator', icon: 'badge' },
     { label: 'Progres Fisik Tangki', icon: 'construction' },
-    { label: 'Log Dokumentasi', icon: 'photo_camera' },
     { label: 'Laporan Kinerja', icon: 'analytics' },
     { label: 'Pengaturan Korwil', icon: 'tune' },
   ];
@@ -177,7 +177,7 @@
         document.getElementById('user-role').textContent =
           user.role === 'admin' ? 'Admin' : user.role === 'korwil' ? 'Koordinator Wilayah' : 'Tenaga Fasilitator';
         if (user.role === 'admin') {
-          ['menu-tambah', 'menu-users'].forEach((id) => {
+          ['menu-tambah', 'menu-users', 'menu-log'].forEach((id) => {
             const menu = document.getElementById(id);
             if (menu) menu.hidden = false;
           });

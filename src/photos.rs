@@ -14,6 +14,7 @@ use crate::{
     auth::current_user,
     error::{internal, AppError},
     projects::ensure_project_access,
+    riwayat::{self, AKSI_CREATE, AKSI_DELETE, AKSI_UPDATE, ENTITAS_FOTO},
     AppState,
 };
 
@@ -42,7 +43,7 @@ pub struct GeoQuery {
 }
 
 pub async fn beneficiary_project_id(db: &MySqlPool, beneficiary_id: u64) -> Result<u64, AppError> {
-    sqlx::query_scalar("SELECT project_id FROM beneficiaries WHERE id = ?")
+    sqlx::query_scalar("SELECT project_id FROM beneficiaries WHERE id = ? AND deleted_at IS NULL")
         .bind(beneficiary_id)
         .fetch_optional(db)
         .await?
@@ -68,7 +69,7 @@ pub async fn list(
     let rows = sqlx::query_as::<_, PhotoRow>(
         "SELECT ph.id, ph.beneficiary_id, CAST(ph.building AS CHAR) AS building, ph.stage, ph.latitude, ph.longitude \
          FROM photos ph JOIN beneficiaries b ON b.id = ph.beneficiary_id \
-         WHERE b.project_id = ?",
+         WHERE b.project_id = ? AND b.deleted_at IS NULL AND ph.deleted_at IS NULL",
     )
     .bind(project_id)
     .fetch_all(&st.db)
@@ -105,12 +106,22 @@ pub async fn upload(
     tokio::fs::write(&path, &full).await.map_err(internal)?;
     tokio::fs::write(&thumb_path, &thumb).await.map_err(internal)?;
 
+    // Sel yang sudah berisi foto aktif diperbarui. Sel yang kosong atau foto hapusannya dibuat baru.
+    let sebelumnya: Option<(u64, i64)> = sqlx::query_as(
+        "SELECT id, CAST(deleted_at IS NOT NULL AS SIGNED) FROM photos WHERE beneficiary_id = ? AND building = ? AND stage = ?",
+    )
+    .bind(beneficiary_id)
+    .bind(&building)
+    .bind(stage)
+    .fetch_optional(&st.db)
+    .await?;
+
     sqlx::query(
         "INSERT INTO photos (beneficiary_id, building, stage, path, thumb_path, taken_at, uploaded_by, latitude, longitude) \
          VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?) \
          ON DUPLICATE KEY UPDATE path = VALUES(path), thumb_path = VALUES(thumb_path), \
          taken_at = VALUES(taken_at), uploaded_by = VALUES(uploaded_by), \
-         latitude = VALUES(latitude), longitude = VALUES(longitude)",
+         latitude = VALUES(latitude), longitude = VALUES(longitude), deleted_at = NULL",
     )
     .bind(beneficiary_id)
     .bind(&building)
@@ -132,6 +143,18 @@ pub async fn upload(
     .bind(stage)
     .fetch_one(&st.db)
     .await?;
+
+    let (aksi, sudah_ada) = match sebelumnya {
+        Some((_, 0)) => (AKSI_UPDATE, true),
+        _ => (AKSI_CREATE, false),
+    };
+    let (_, text) = riwayat::label(&st.db, ENTITAS_FOTO, row.id).await?;
+    let keterangan = if sudah_ada {
+        format!("{text} diganti")
+    } else {
+        format!("{text} diunggah")
+    };
+    riwayat::catat(&st.db, &user, aksi, ENTITAS_FOTO, row.id, Some(project_id), &keterangan).await?;
     Ok((StatusCode::CREATED, Json(row)))
 }
 
@@ -145,27 +168,34 @@ pub async fn delete(
     ensure_project_access(&st.db, &user, project_id).await?;
     validate_cell(&building, stage)?;
 
-    let paths: Option<(String, String)> = sqlx::query_as(
-        "SELECT path, thumb_path FROM photos WHERE beneficiary_id = ? AND building = ? AND stage = ?",
+    let photo_id: Option<u64> = sqlx::query_scalar(
+        "SELECT id FROM photos WHERE beneficiary_id = ? AND building = ? AND stage = ? AND deleted_at IS NULL",
     )
     .bind(beneficiary_id)
     .bind(&building)
     .bind(stage)
     .fetch_optional(&st.db)
     .await?;
-    let Some((path, thumb_path)) = paths else {
+    let Some(photo_id) = photo_id else {
         return Err(AppError::NotFound);
     };
 
-    sqlx::query("DELETE FROM photos WHERE beneficiary_id = ? AND building = ? AND stage = ?")
-        .bind(beneficiary_id)
-        .bind(&building)
-        .bind(stage)
+    // Hapus lunak: file di disk dibiarkan supaya foto bisa dipulihkan dari riwayat.
+    let (_, text) = riwayat::label(&st.db, ENTITAS_FOTO, photo_id).await?;
+    sqlx::query("UPDATE photos SET deleted_at = NOW() WHERE id = ?")
+        .bind(photo_id)
         .execute(&st.db)
         .await?;
-    // File yang sudah hilang dari disk tidak perlu dianggap error.
-    let _ = tokio::fs::remove_file(&path).await;
-    let _ = tokio::fs::remove_file(&thumb_path).await;
+    riwayat::catat(
+        &st.db,
+        &user,
+        AKSI_DELETE,
+        ENTITAS_FOTO,
+        photo_id,
+        Some(project_id),
+        &format!("{text} dihapus"),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -178,7 +208,7 @@ pub async fn image(
     let user = current_user(&session, &st.db).await?;
     let row: Option<(u64, String)> = sqlx::query_as(
         "SELECT b.project_id, ph.path FROM photos ph \
-         JOIN beneficiaries b ON b.id = ph.beneficiary_id WHERE ph.id = ?",
+         JOIN beneficiaries b ON b.id = ph.beneficiary_id WHERE ph.id = ? AND ph.deleted_at IS NULL AND b.deleted_at IS NULL",
     )
     .bind(id)
     .fetch_optional(&st.db)
@@ -208,7 +238,7 @@ pub async fn thumb(
     let user = current_user(&session, &st.db).await?;
     let row: Option<(u64, String)> = sqlx::query_as(
         "SELECT b.project_id, ph.thumb_path FROM photos ph \
-         JOIN beneficiaries b ON b.id = ph.beneficiary_id WHERE ph.id = ?",
+         JOIN beneficiaries b ON b.id = ph.beneficiary_id WHERE ph.id = ? AND ph.deleted_at IS NULL AND b.deleted_at IS NULL",
     )
     .bind(id)
     .fetch_optional(&st.db)

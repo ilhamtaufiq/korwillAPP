@@ -12,6 +12,8 @@ Domain produksi: **https://korwil.cianjur.space**
 - Ekspor PDF dengan opsi sel kosong dan catatan tambahan, plus pratinjau langsung.
 - Impor data awal dari rekap Lapming (.xlsx). Akun korwil dan TFL dibuat otomatis.
 - Dashboard ringkasan dan daftar user (khusus admin).
+- Log Dokumentasi (khusus admin): riwayat tambah, ubah, dan hapus pekerjaan, pemanfaat, dan foto, lengkap dengan siapa dan kapan.
+- Hapus lunak: data yang dihapus tidak langsung hilang dan bisa dipulihkan dari Log Dokumentasi. Foto yang dihapus tetap tersimpan di disk.
 
 ## Teknologi
 
