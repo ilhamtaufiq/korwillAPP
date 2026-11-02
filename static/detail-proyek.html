@@ -161,7 +161,7 @@ function photoCell(beneficiaryId, key, stage, photoId) {
 
 function beneficiaryRows(b, photoIds, count) {
   const nameCells = `
-    <td rowspan="2" class="px-3 py-2 align-middle text-ink3">${b.no}</td>
+    <td rowspan="2" class="px-3 py-2 align-middle text-ink3">${b.urut}</td>
     <td rowspan="2" class="px-3 py-2 align-middle font-medium">${esc(b.nama)}${b.nik ? `<div class="text-xs font-normal text-ink3">NIK ${esc(b.nik)}</div>` : ''}</td>
     <td rowspan="2" class="px-3 py-2 align-middle text-ink2">${esc(b.rt_rw_dusun)}</td>`;
   const rows = BUILDINGS.map(([key, label], i) => {
@@ -268,6 +268,8 @@ let activeFilter = 'all';
 
 function renderRows() {
   const { beneficiaries, photoIds, perBeneficiary } = lastData;
+  // Nomor tampilan mengikuti urutan baris yang aktif, bukan kolom no di database.
+  beneficiaries.forEach((b, i) => { b.urut = i + 1; });
   const q = document.getElementById('beneficiary-search').value.trim().toLowerCase();
   const total = (b) => perBeneficiary.get(b.id) || 0;
   const lengkap = beneficiaries.filter((b) => total(b) === 10).length;

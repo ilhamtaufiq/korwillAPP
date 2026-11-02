@@ -77,10 +77,12 @@ pub async fn export_pdf(
     .fetch_all(&st.db)
     .await?;
 
+    // Nomor di PDF mengikuti urutan baris yang aktif (query sudah ORDER BY no).
     let mut rows: Vec<Pemanfaat> = beneficiaries
         .iter()
-        .map(|b| Pemanfaat {
-            no: b.no,
+        .enumerate()
+        .map(|(i, b)| Pemanfaat {
+            no: (i + 1) as u32,
             nama: b.nama.clone(),
             rt_rw_dusun: b.rt_rw_dusun.clone(),
             nik: b.nik.clone(),
