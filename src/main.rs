@@ -82,6 +82,7 @@ fn router(state: AppState) -> Router {
         .route("/api/log", get(riwayat::list))
         .route("/api/lapming/info", get(lapming::api::info))
         .route("/api/lapming/impor", post(lapming::api::impor))
+        .route("/api/lapming/impor-link", post(lapming::api::impor_link))
         .route("/api/lapming/pratinjau", get(lapming::api::pratinjau))
         .route("/api/lapming/laporan/:format", get(lapming::api::laporan))
         .route("/api/lapming/laporan-file/:format", post(lapming::api::laporan_file))

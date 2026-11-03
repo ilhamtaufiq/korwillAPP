@@ -132,11 +132,76 @@ pub async fn impor(
 ) -> Result<Json<Value>, AppError> {
     let user = current_user(&session, &st.db).await?;
     butuh_lapming(&user)?;
-    let lpk = match q.jenis.as_str() {
-        "san" => false,
-        "lpk" => true,
-        _ => return Err(AppError::BadRequest("Jenis sumber harus san atau lpk".to_string())),
-    };
+    let lpk = jenis_lpk(&q.jenis)?;
+    proses_impor(&st, lpk, body).await
+}
+
+#[derive(Deserialize)]
+pub struct LinkIn {
+    link: String,
+}
+
+/// Mengimpor file sumber dari link Google Sheets atau Drive yang dibagikan ke siapa saja yang memiliki link.
+pub async fn impor_link(
+    State(st): State<AppState>,
+    session: Session,
+    Query(q): Query<ImporQuery>,
+    Json(input): Json<LinkIn>,
+) -> Result<Json<Value>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    butuh_lapming(&user)?;
+    let lpk = jenis_lpk(&q.jenis)?;
+    let isi = unduh_link(&input.link).await?;
+    proses_impor(&st, lpk, Bytes::from(isi)).await
+}
+
+fn jenis_lpk(jenis: &str) -> Result<bool, AppError> {
+    match jenis {
+        "san" => Ok(false),
+        "lpk" => Ok(true),
+        _ => Err(AppError::BadRequest("Jenis sumber harus san atau lpk".to_string())),
+    }
+}
+
+const BATAS_UNDUH: usize = 30 * 1024 * 1024;
+
+/// Mengunduh xlsx dari link Google Sheets atau Drive. URL unduhan dibentuk dari ID file, bukan dari link
+/// pengguna, sehingga hanya host Google yang pernah dihubungi.
+async fn unduh_link(link: &str) -> Result<Vec<u8>, AppError> {
+    let re = regex::Regex::new(r"/d/([\w-]{20,})|[?&]id=([\w-]{20,})").unwrap();
+    let id = re
+        .captures(link.trim())
+        .and_then(|c| c.get(1).or_else(|| c.get(2)))
+        .map(|m| m.as_str().to_string())
+        .ok_or_else(|| AppError::BadRequest("ID file tidak ditemukan di link. Pakai link Google Sheets atau Drive.".to_string()))?;
+    let klien = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(90))
+        .user_agent("Mozilla/5.0")
+        .build()
+        .map_err(internal)?;
+    for url in [
+        format!("https://drive.google.com/uc?export=download&id={id}"),
+        format!("https://docs.google.com/spreadsheets/d/{id}/export?format=xlsx"),
+    ] {
+        let Ok(res) = klien.get(&url).send().await else { continue };
+        if !res.status().is_success() {
+            continue;
+        }
+        let Ok(b) = res.bytes().await else { continue };
+        if b.len() > BATAS_UNDUH {
+            return Err(AppError::BadRequest("File dari link terlalu besar (maks. 30 MB)".to_string()));
+        }
+        // xlsx adalah zip; halaman login atau galat Google bukan zip.
+        if b.starts_with(b"PK") {
+            return Ok(b.to_vec());
+        }
+    }
+    Err(AppError::BadRequest(
+        "Gagal mengunduh dari link. Pastikan file dibagikan sebagai \"Siapa saja yang memiliki link\", atau unggah file xlsx dari komputer.".to_string(),
+    ))
+}
+
+async fn proses_impor(st: &AppState, lpk: bool, body: Bytes) -> Result<Json<Value>, AppError> {
     if body.is_empty() {
         return Err(AppError::BadRequest("File kosong".to_string()));
     }
@@ -336,6 +401,7 @@ pub async fn laporan_file(
     let user = current_user(&session, &st.db).await?;
     butuh_lapming(&user)?;
     let (mut san, mut lpk) = (None, None);
+    let (mut link_san, mut link_lpk) = (String::new(), String::new());
     let (mut korfas, mut sheet, mut tahap) = (String::new(), None, None);
     while let Some(f) = mp.next_field().await.map_err(|e| AppError::BadRequest(e.to_string()))? {
         let nama = f.name().unwrap_or("").to_string();
@@ -350,14 +416,22 @@ pub async fn laporan_file(
                     }
                 }
             }
+            "link_sanimas" => link_san = f.text().await.map_err(|e| AppError::BadRequest(e.to_string()))?,
+            "link_lpk" => link_lpk = f.text().await.map_err(|e| AppError::BadRequest(e.to_string()))?,
             "korfas" => korfas = f.text().await.map_err(|e| AppError::BadRequest(e.to_string()))?,
             "sheet" => sheet = Some(f.text().await.map_err(|e| AppError::BadRequest(e.to_string()))?),
             "tahap" => tahap = Some(f.text().await.map_err(|e| AppError::BadRequest(e.to_string()))?),
             _ => {}
         }
     }
+    if san.is_none() && !link_san.trim().is_empty() {
+        san = Some(Bytes::from(unduh_link(&link_san).await?));
+    }
+    if lpk.is_none() && !link_lpk.trim().is_empty() {
+        lpk = Some(Bytes::from(unduh_link(&link_lpk).await?));
+    }
     if san.is_none() && lpk.is_none() {
-        return Err(AppError::BadRequest("Pilih minimal satu file sumber (Sanimas atau LPK)".to_string()));
+        return Err(AppError::BadRequest("Pilih minimal satu file atau link sumber (Sanimas atau LPK)".to_string()));
     }
     if korfas.trim().is_empty() {
         return Err(AppError::BadRequest("Korfas wajib diisi".to_string()));

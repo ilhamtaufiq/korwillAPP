@@ -32,6 +32,7 @@
           <button id="btn-impor-san" type="button" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Impor Sanimas</button>
           <span id="st-san" class="text-xs text-ink3"></span>
         </div>
+        <div class="flex items-center gap-2"><input id="l-san" type="url" placeholder="atau tempel link Google Sheets/Drive" class="h-11 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm"><button id="btn-link-san" type="button" class="h-11 shrink-0 rounded-lg border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-primary disabled:opacity-50">Impor link</button></div>
       </div>
       <div class="flex flex-col gap-2">
         <label class="text-sm font-semibold text-ink2" for="f-lpk">File LPK (.xlsx)</label>
@@ -40,6 +41,7 @@
           <button id="btn-impor-lpk" type="button" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Impor LPK</button>
           <span id="st-lpk" class="text-xs text-ink3"></span>
         </div>
+        <div class="flex items-center gap-2"><input id="l-lpk" type="url" placeholder="atau tempel link Google Sheets/Drive" class="h-11 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm"><button id="btn-link-lpk" type="button" class="h-11 shrink-0 rounded-lg border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-primary disabled:opacity-50">Impor link</button></div>
       </div>
     </div>
   </section>
@@ -79,7 +81,11 @@
           <input id="d-lpk" type="file" accept=".xlsx" class="text-sm">
         </div>
       </div>
-      <p class="mt-2 text-xs text-ink3">Korfas, minggu, dan tahap memakai pilihan di atas. Pilih korfas yang ada di file; kalau daftar korfas masih kosong, impor dulu salah satu file.</p>
+      <div class="mt-3 grid gap-3 md:grid-cols-2">
+        <input id="d-link-san" type="url" placeholder="atau link Google Sheets/Drive Sanimas" class="h-11 rounded-lg border border-line px-3 text-sm">
+        <input id="d-link-lpk" type="url" placeholder="atau link Google Sheets/Drive LPK" class="h-11 rounded-lg border border-line px-3 text-sm">
+      </div>
+      <p class="mt-2 text-xs text-ink3">Link harus dibagikan sebagai "Siapa saja yang memiliki link". Korfas, minggu, dan tahap memakai pilihan di atas. Pilih korfas yang ada di file; kalau daftar korfas masih kosong, impor dulu salah satu file.</p>
       <div class="mt-3 flex flex-wrap gap-2">
         <button id="btn-file-xlsx" type="button" class="h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-primary disabled:opacity-50">XLSX dari file</button>
         <button id="btn-file-pptx" type="button" class="h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-primary disabled:opacity-50">PPTX dari file</button>
@@ -205,6 +211,26 @@ async function muatInfo(pilihKorfas) {
   tulisSumber(info);
 }
 
+function tampilHasil(r) {
+  pesanOk(`Impor selesai: ${r.sheet_dibaca} dari ${r.sheet_total} sheet dibaca, ${r.baris} baris. ` +
+    (r.pertama_kali ? 'Ini impor pertama, belum ada pembanding.' : `${r.perubahan} baris berubah dibanding impor sebelumnya.`));
+}
+
+async function imporLink(jenis, inputId, tombol) {
+  bersih();
+  const link = $(inputId).value.trim();
+  if (!link) return pesanGagal('Tempel link Google Sheets atau Drive dulu.');
+  tombol.disabled = true;
+  try {
+    tampilHasil(await api('POST', `/api/lapming/impor-link?jenis=${jenis}`, { link }));
+    await muatInfo();
+  } catch (e) {
+    pesanGagal(e.message);
+  } finally {
+    tombol.disabled = false;
+  }
+}
+
 async function impor(jenis, inputId, tombol) {
   bersih();
   const file = $(inputId).files[0];
@@ -251,11 +277,15 @@ async function laporanFile(format, tombol) {
   bersih();
   const san = $('d-san').files[0];
   const lpk = $('d-lpk').files[0];
-  if (!san && !lpk) return pesanGagal('Pilih minimal satu file sumber.');
+  const lsan = $('d-link-san').value.trim();
+  const llpk = $('d-link-lpk').value.trim();
+  if (!san && !lpk && !lsan && !llpk) return pesanGagal('Pilih minimal satu file atau link sumber.');
   if (!$('korfas').value) return pesanGagal('Pilih korfas dulu. Kalau daftarnya kosong, impor salah satu file terlebih dulu.');
   const fd = new FormData();
   if (san) fd.append('sanimas', san);
   if (lpk) fd.append('lpk', lpk);
+  fd.append('link_sanimas', lsan);
+  fd.append('link_lpk', llpk);
   fd.append('korfas', $('korfas').value);
   fd.append('sheet', $('minggu').value);
   fd.append('tahap', $('tahap').value);
@@ -381,6 +411,8 @@ async function muatLog() {
 
 $('btn-impor-san').addEventListener('click', (e) => impor('san', 'f-san', e.currentTarget));
 $('btn-impor-lpk').addEventListener('click', (e) => impor('lpk', 'f-lpk', e.currentTarget));
+$('btn-link-san').addEventListener('click', (e) => imporLink('san', 'l-san', e.currentTarget));
+$('btn-link-lpk').addEventListener('click', (e) => imporLink('lpk', 'l-lpk', e.currentTarget));
 $('btn-pratinjau').addEventListener('click', pratinjau);
 $('btn-xlsx').addEventListener('click', (e) => laporan('xlsx', e.currentTarget));
 $('btn-pptx').addEventListener('click', (e) => laporan('pptx', e.currentTarget));
