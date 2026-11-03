@@ -17,6 +17,8 @@ pub struct Label {
     pub bold: bool,
     pub color: String,
     pub pos: &'static str,
+    /// Putar teks label vertikal supaya tidak bertumpuk pada chart dengan banyak kategori.
+    pub rotate: bool,
 }
 
 #[derive(Clone)]
@@ -109,8 +111,13 @@ impl ChartSpec {
     }
 
     fn tx_pr(size: f64, bold: bool, color: &str) -> String {
+        Self::tx_pr_rot(size, bold, color, false)
+    }
+
+    fn tx_pr_rot(size: f64, bold: bool, color: &str, rotate: bool) -> String {
+        let body = if rotate { "<a:bodyPr rot=\"-5400000\" vert=\"horz\"/>" } else { "<a:bodyPr/>" };
         format!(
-            "<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz=\"{}\"{}><a:solidFill><a:srgbClr val=\"{color}\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr>",
+            "<c:txPr>{body}<a:lstStyle/><a:p><a:pPr><a:defRPr sz=\"{}\"{}><a:solidFill><a:srgbClr val=\"{color}\"/></a:solidFill></a:defRPr></a:pPr></a:p></c:txPr>",
             (size * 100.0).round() as i64,
             if bold { " b=\"1\"" } else { "" }
         )
@@ -159,7 +166,7 @@ impl ChartSpec {
                 Some(l) => x.push_str(&format!(
                     "<c:numFmt formatCode=\"{}\" sourceLinked=\"0\"/>{}<c:dLblPos val=\"{}\"/><c:showLegendKey val=\"0\"/><c:showVal val=\"1\"/><c:showCatName val=\"0\"/><c:showSerName val=\"0\"/><c:showPercent val=\"0\"/><c:showBubbleSize val=\"0\"/><c:showLeaderLines val=\"1\"/>",
                     esc(&l.fmt).replace('"', "&quot;"),
-                    Self::tx_pr(l.size, l.bold, &l.color),
+                    Self::tx_pr_rot(l.size, l.bold, &l.color, l.rotate),
                     l.pos
                 )),
                 None => x.push_str("<c:showLegendKey val=\"0\"/><c:showVal val=\"0\"/><c:showCatName val=\"0\"/><c:showSerName val=\"0\"/><c:showPercent val=\"0\"/><c:showBubbleSize val=\"0\"/><c:showLeaderLines val=\"1\"/>"),

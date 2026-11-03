@@ -91,7 +91,7 @@ fn bar_chart(
         .map(|(i, (nm, v))| {
             let mut s = Series::new(&nm, v, colors[i]);
             if labels && !stacked {
-                s.label = Some(Label { fmt: fmt.to_string(), size, bold: true, color: TEXT.to_string(), pos: "outEnd" });
+                s.label = Some(Label { fmt: fmt.to_string(), size, bold: true, color: TEXT.to_string(), pos: "outEnd", rotate: false });
             }
             s
         })
@@ -574,12 +574,12 @@ pub fn build(
             Some(&format!("Fisik {} vs keuangan {}, selisih {} poin", pct(s.fis, 2), pct(s.keu, 2), num(sel_.abs(), 1))),
         );
         let mut fis = Series::new("Progres fisik kumulatif (%)", rows.iter().map(|x| x.ag * 100.0).collect(), NAVY);
-        fis.label = Some(Label { fmt: "0.00\"%\"".into(), size: 9.0, bold: true, color: NAVY.into(), pos: "outEnd" });
+        fis.label = Some(Label { fmt: "0.00\"%\"".into(), size: 9.0, bold: true, color: NAVY.into(), pos: "outEnd", rotate: true });
         let mut keu = Series::new("Progres keuangan kumulatif (%)", rows.iter().map(|x| x.ad * 100.0).collect(), KUNING_PU);
-        keu.label = Some(Label { fmt: "0.00\"%\"".into(), size: 9.0, bold: true, color: KEU_TXT.into(), pos: "outEnd" });
+        keu.label = Some(Label { fmt: "0.00\"%\"".into(), size: 9.0, bold: true, color: KEU_TXT.into(), pos: "outEnd", rotate: true });
         let mut spec = ChartSpec::bar(rows.iter().map(lbl).collect(), vec![fis, keu], 9.0);
         spec.col = true;
-        spec.gap = 60;
+        spec.gap = 35;
         spec.overlap = Some(-5);
         spec.reverse_cats = false;
         spec.val_visible = true;
