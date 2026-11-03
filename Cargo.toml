@@ -6,12 +6,12 @@ edition = "2021"
 [dependencies]
 printpdf = "0.7"
 image = "0.24"
-axum = "0.7"
+axum = { version = "0.7", features = ["multipart"] }
 tokio = { version = "1", features = ["full"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "mysql", "migrate", "macros", "chrono"] }
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
 argon2 = "0.5"
 password-hash = { version = "0.5", features = ["rand_core"] }
 tower-sessions = "0.13"
@@ -19,3 +19,6 @@ tower-http = { version = "0.5", features = ["fs"] }
 anyhow = "1"
 kamadak-exif = "0.5"
 calamine = "0.26"
+rust_xlsxwriter = "0.79"
+zip = { version = "2.2.2", default-features = false, features = ["deflate"] }
+regex = "1"

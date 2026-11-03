@@ -15,6 +15,21 @@ Domain produksi: **https://korwil.cianjur.space**
 - Log Dokumentasi (khusus admin): riwayat tambah, ubah, dan hapus pekerjaan, pemanfaat, dan foto, lengkap dengan siapa dan kapan.
 - Hapus lunak: data yang dihapus tidak langsung hilang dan bisa dipulihkan dari Log Dokumentasi. Foto yang dihapus tetap tersimpan di disk.
 
+## Laporan Lapming
+
+Halaman **Laporan Lapming** (admin dan korwil) membuat laporan mingguan Sanimas dan LPK per korfas, setara dengan skrip `generate_lapming.py`:
+
+- **XLSX**: sheet M1..Mn, Kumulatif (rumus, pilih minggu di sel C3), Anomali, Cek Data, dan Log Perubahan.
+- **PPTX**: sampul, ringkasan, chart fisik dan keuangan, tabel kumulatif, saldo RPDB, anomali data, dan log perubahan.
+
+Alur: impor file rekap Sanimas dan LPK (sheet `M1`, `M2`, ...) ke database, pilih korfas, minggu, dan tahap, lalu unduh laporan. Laporan juga bisa dibuat langsung dari file tanpa disimpan ke database. Perubahan nilai antar impor dicatat di log, dan data RPDB serta alias nama Pokmas diisi di halaman yang sama.
+
+Untuk mencoba dari terminal tanpa database:
+
+```bash
+cargo run -- lapming-cli --sanimas sanimas.xlsx --lpk lpk.xlsx --korfas Ganthi --out hasil
+```
+
 ## Teknologi
 
 - Backend: Rust, Axum, SQLx (MySQL 8), printpdf, calamine (baca xlsx).

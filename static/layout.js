@@ -11,6 +11,7 @@
     { href: '/tambah-proyek.html', label: 'Tambah Pekerjaan', icon: 'add_circle', adminOnly: true, id: 'menu-tambah' },
     { href: '/users.html', label: 'Daftar User', icon: 'group', adminOnly: true, id: 'menu-users' },
     { href: '/log-dokumentasi.html', label: 'Log Dokumentasi', icon: 'photo_camera', adminOnly: true, id: 'menu-log' },
+    { href: '/lapming.html', label: 'Laporan Lapming', icon: 'monitoring', id: 'menu-lapming' },
     { href: '/ganti-sandi.html', label: 'Ganti Kata Sandi', icon: 'key' },
   ];
 
@@ -156,6 +157,10 @@
         document.getElementById('user-name').textContent = user.username;
         document.getElementById('user-role').textContent =
           user.role === 'admin' ? 'Admin' : user.role === 'korwil' ? 'Koordinator Wilayah' : 'Tenaga Fasilitator';
+        if (user.role === 'admin' || user.role === 'korwil') {
+          const menu = document.getElementById('menu-lapming');
+          if (menu) menu.hidden = false;
+        }
         if (user.role === 'admin') {
           ['menu-tambah', 'menu-users', 'menu-log'].forEach((id) => {
             const menu = document.getElementById(id);

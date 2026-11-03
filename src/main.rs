@@ -3,6 +3,7 @@ mod dashboard;
 mod error;
 mod export;
 mod import;
+mod lapming;
 mod members;
 mod users;
 mod pdf;
@@ -79,6 +80,18 @@ fn router(state: AppState) -> Router {
         .route("/api/users/:id", put(users::update))
         .route("/api/users/:id/password", post(users::reset_password))
         .route("/api/log", get(riwayat::list))
+        .route("/api/lapming/info", get(lapming::api::info))
+        .route("/api/lapming/impor", post(lapming::api::impor))
+        .route("/api/lapming/pratinjau", get(lapming::api::pratinjau))
+        .route("/api/lapming/laporan/:format", get(lapming::api::laporan))
+        .route("/api/lapming/laporan-file/:format", post(lapming::api::laporan_file))
+        .route("/api/lapming/log", get(lapming::api::log_daftar))
+        .route("/api/lapming/pokmas", get(lapming::api::pokmas_daftar))
+        .route("/api/lapming/rpdb", put(lapming::api::rpdb_simpan))
+        .route(
+            "/api/lapming/alias",
+            get(lapming::api::alias_daftar).put(lapming::api::alias_simpan),
+        )
         .route("/api/restore/:entitas/:id", post(riwayat::restore))
         // Foto dari HP bisa 5-10 MB, jadi batas default 2 MB terlalu kecil.
         .layer(DefaultBodyLimit::max(20 * 1024 * 1024))
@@ -95,6 +108,12 @@ fn router(state: AppState) -> Router {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Perintah pengujian generator Lapming: tidak butuh database.
+    let argumen: Vec<String> = std::env::args().collect();
+    if argumen.get(1).map(String::as_str) == Some("lapming-cli") {
+        return lapming::cli::jalankan(&argumen[2..]);
+    }
+
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "mysql://root@127.0.0.1:3306/sanimas_dev".to_string());
     let pool = MySqlPoolOptions::new()

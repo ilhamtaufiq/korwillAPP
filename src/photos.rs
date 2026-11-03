@@ -316,6 +316,7 @@ fn encode_jpeg(img: &DynamicImage, quality: u8) -> Result<Vec<u8>, AppError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ::image::GenericImageView;
 
     fn landscape() -> DynamicImage {
         DynamicImage::new_rgb8(4, 2)
