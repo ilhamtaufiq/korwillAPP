@@ -9,6 +9,24 @@ import Shell from '../layouts/Shell.astro';
     <p class="text-sm text-ink3">Detail progres satu minggu per Pokmas, seperti laporan mingguan. Pilih sumber, minggu (M1, M2, dan seterusnya), dan tahap.</p>
   </div>
 
+  <section class="mb-4 flex flex-col gap-3 rounded-lg border border-line bg-white p-4 md:flex-row md:items-end md:justify-between">
+    <div>
+      <h2 class="font-semibold">Laporan bulanan Korwil (.docx)</h2>
+      <p id="lb-hint" class="text-sm text-ink3">Narasi dan tabel dibuat dari data Lapming sampai minggu yang dipilih. Bagian bertanda merah perlu diisi sebelum dikirim.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <select id="lb-bulan" aria-label="Bulan laporan" class="h-11 rounded-lg border border-line bg-white px-3 text-sm">
+        <option value="1">Bulan 1 (8 Jul – 7 Agu)</option>
+        <option value="2" selected>Bulan 2 (8 Agu – 7 Sep)</option>
+        <option value="3">Bulan 3 (8 Sep – 7 Okt)</option>
+        <option value="4">Bulan 4 (8 Okt – 7 Nov)</option>
+        <option value="5">Bulan 5 (8 Nov – 7 Des)</option>
+        <option value="6">Bulan 6 (8 Des – 7 Jan)</option>
+      </select>
+      <a id="lb-unduh" href="#" class="inline-flex h-11 items-center rounded-lg bg-primary px-4 font-semibold text-white hover:bg-primary-hover">Unduh .docx</a>
+    </div>
+  </section>
+
   <section class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
     <select id="f-sumber" aria-label="Sumber data" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
       <option value="san">Sanimas</option>
@@ -191,6 +209,32 @@ function renderBaris(r) {
   document.getElementById('info').textContent = `Minggu M${r.minggu}: ${r.baris.length} pokmas ditampilkan.`;
 }
 
+// Tautan unduh laporan bulanan mengikuti bulan, minggu, dan korwil yang sedang dipilih.
+function perbaruiUnduh() {
+  const bulan = document.getElementById('lb-bulan').value;
+  const sampai = document.getElementById('f-minggu').value;
+  const korfas = document.getElementById('f-korfas').value;
+  const a = document.getElementById('lb-unduh');
+  const hint = document.getElementById('lb-hint');
+  if (!korfas && !isAdminKorwil()) {
+    a.removeAttribute('href');
+    a.setAttribute('aria-disabled', 'true');
+    hint.textContent = 'Pilih korwil terlebih dahulu untuk mengunduh laporan.';
+    return;
+  }
+  const q = new URLSearchParams({ bulan });
+  if (sampai) q.set('sampai', sampai);
+  if (korfas) q.set('korfas', korfas);
+  a.setAttribute('href', `/api/lapming/laporan-bulanan?${q}`);
+  a.removeAttribute('aria-disabled');
+  hint.textContent = 'Narasi dan tabel dibuat dari data Lapming sampai minggu yang dipilih. Bagian bertanda merah perlu diisi sebelum dikirim.';
+}
+
+let perananAkun = '';
+function isAdminKorwil() {
+  return perananAkun === 'korwil';
+}
+
 async function muat() {
   const sumber = document.getElementById('f-sumber').value;
   const minggu = document.getElementById('f-minggu').value;
@@ -215,6 +259,7 @@ async function muat() {
   renderRingkasan(r);
   renderBaris(r);
   renderDetail(r);
+  perbaruiUnduh();
 }
 
 const jalan = () => muat().catch((err) => showError(errorBox, err.message));
@@ -222,7 +267,9 @@ const jalan = () => muat().catch((err) => showError(errorBox, err.message));
 
 (async () => {
   try {
-    await requireAuth();
+    const akun = await requireAuth();
+    perananAkun = akun.role;
+    document.getElementById('lb-bulan').addEventListener('change', perbaruiUnduh);
     await jalan();
   } catch (err) {
     showError(errorBox, err.message);

@@ -122,6 +122,7 @@ fn router(state: AppState) -> Router {
         .route("/api/lapming/anomali", get(lapming::api::anomali_daftar))
         .route("/api/lapming/tren", get(lapming::api::tren))
         .route("/api/lapming/minggu", get(lapming::api::minggu_detail))
+        .route("/api/lapming/laporan-bulanan", get(lapming::api::laporan_bulanan))
         .route(
             "/api/lapming/update",
             get(lapming::api::update_status).post(lapming::api::perbarui),

@@ -4,6 +4,7 @@ pub mod api;
 pub mod calc;
 pub mod cli;
 pub mod fmt;
+pub mod laporan;
 pub mod log;
 pub mod model;
 pub mod pptx;

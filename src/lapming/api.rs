@@ -9,7 +9,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::{MySql, MySqlPool, QueryBuilder};
@@ -19,7 +19,10 @@ use super::calc::{self, DataPokmas, TahapRpdb};
 use super::fmt::{norm_nama, periode};
 use super::log::{self, LogEntri, Ubah};
 use super::model::{Book, Dataset, Row};
-use super::{pptx, read, xlsx};
+use super::{
+    laporan::{self, Blok},
+    pptx, read, xlsx,
+};
 use crate::{
     auth::{current_user, User},
     error::{internal, AppError},
@@ -1079,6 +1082,400 @@ pub async fn minggu_detail(
         "tahap": tahap_ada.into_iter().collect::<Vec<String>>(),
         "korfas": korfas_ada.into_iter().collect::<Vec<String>>(),
     })))
+}
+
+#[derive(Deserialize)]
+pub struct LaporanBulananQuery {
+    /// Bulan laporan 1 sampai 6 (Bulan 1 = 8 Juli sampai 7 Agustus 2026).
+    bulan: u32,
+    tahun: Option<i32>,
+    /// Data sampai minggu M ke-n. Kosong = minggu terakhir yang berisi data.
+    sampai: Option<u32>,
+    /// Hanya untuk admin. Akun korwil selalu memakai korwilnya sendiri.
+    korfas: Option<String>,
+}
+
+const BULAN_ID: [&str; 12] = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+/// Periode bulanan dari tanggal 8 sampai 7: Bulan 1 = 8 Juli sampai 7 Agustus, dan seterusnya.
+fn periode_bulanan(bulan: u32, tahun: i32) -> Option<(NaiveDate, NaiveDate)> {
+    if !(1..=6).contains(&bulan) {
+        return None;
+    }
+    let bulan_mulai = 6 + bulan;
+    let mulai = NaiveDate::from_ymd_opt(tahun, bulan_mulai, 8)?;
+    let (tahun_akhir, bulan_akhir) = if bulan_mulai == 12 { (tahun + 1, 1) } else { (tahun, bulan_mulai + 1) };
+    let selesai = NaiveDate::from_ymd_opt(tahun_akhir, bulan_akhir, 7)?;
+    Some((mulai, selesai))
+}
+
+fn tgl_id(d: NaiveDate) -> String {
+    format!("{} {} {}", d.format("%d"), BULAN_ID[d.month0() as usize], d.year())
+}
+
+/// Persen dari nilai yang sudah dalam skala 0-100, dengan koma desimal.
+fn persen(v: f64) -> String {
+    format!("{:.2}%", v).replace('.', ",")
+}
+
+/// Rupiah tanpa desimal dengan titik pemisah ribuan.
+fn rp(v: f64) -> String {
+    let n = v.round() as i64;
+    let digit = n.abs().to_string();
+    let mut out = String::new();
+    for (i, c) in digit.chars().enumerate() {
+        if i > 0 && (digit.len() - i) % 3 == 0 {
+            out.push('.');
+        }
+        out.push(c);
+    }
+    format!("Rp {}{}", if n < 0 { "-" } else { "" }, out)
+}
+
+fn kata(xs: &[&str]) -> Vec<String> {
+    xs.iter().map(|x| x.to_string()).collect()
+}
+
+/// Ringkasan satu kelompok (kabupaten dan sumber). Persen dirata-rata tertimbang pagu.
+struct Ringkas {
+    pokmas: usize,
+    pagu: f64,
+    realisasi: f64,
+    fisik: f64,
+    keuangan: f64,
+    pekerja: i64,
+    hok: i64,
+}
+
+fn ringkas(rows: &[Row], idx: &[usize]) -> Ringkas {
+    let pagu: f64 = idx.iter().map(|&i| rows[i].pagu).sum();
+    let tertimbang = |f: fn(&Row) -> f64| -> f64 {
+        if pagu > 0.0 {
+            idx.iter().map(|&i| f(&rows[i]) * rows[i].pagu).sum::<f64>() / pagu * 100.0
+        } else {
+            0.0
+        }
+    };
+    Ringkas {
+        pokmas: idx.len(),
+        pagu,
+        realisasi: idx.iter().map(|&i| rows[i].aa).sum(),
+        fisik: tertimbang(|x| x.ag),
+        keuangan: tertimbang(|x| x.ad),
+        pekerja: idx.iter().map(|&i| rows[i].p).sum(),
+        hok: idx.iter().map(|&i| rows[i].r).sum(),
+    }
+}
+
+/// Laporan bulanan Korwil dalam format .docx. Angka dari Lapming, narasi dari templat.
+/// Bagian yang tidak ada di data ditandai merah untuk diisi.
+pub async fn laporan_bulanan(
+    State(st): State<AppState>,
+    session: Session,
+    Query(q): Query<LaporanBulananQuery>,
+) -> Result<Response, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    butuh_lapming(&user)?;
+    let tahun = q.tahun.unwrap_or(2026);
+    let (mulai, selesai) =
+        periode_bulanan(q.bulan, tahun).ok_or_else(|| AppError::BadRequest("Bulan harus 1 sampai 6".to_string()))?;
+
+    let ds = muat_dataset(&st.db).await?;
+    let daftar = calc::daftar_korfas(&ds);
+    let korwil: String = if user.role == "korwil" {
+        let nama: Option<String> = sqlx::query_scalar::<_, Option<String>>("SELECT nama FROM users WHERE id = ?")
+            .bind(user.id)
+            .fetch_optional(&st.db)
+            .await?
+            .flatten();
+        let kunci = nama.as_deref().map(norm_nama).unwrap_or_default();
+        daftar.iter().find(|k| !kunci.is_empty() && norm_nama(k) == kunci).cloned().ok_or(AppError::NotFound)?
+    } else {
+        let k = q
+            .korfas
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| AppError::BadRequest("Parameter korfas wajib diisi".to_string()))?;
+        daftar.iter().find(|x| norm_nama(x) == norm_nama(k)).cloned().ok_or(AppError::NotFound)?
+    };
+
+    let mut tersedia: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
+    for (_, b) in ds.books() {
+        for (&w, rows) in &b.sheets {
+            if rows.iter().any(|x| x.korfas == korwil && x.terisi()) {
+                tersedia.insert(w);
+            }
+        }
+    }
+    let terakhir = *tersedia.iter().next_back().ok_or(AppError::NotFound)?;
+    let minggu = q.sampai.filter(|m| tersedia.contains(m)).unwrap_or(terakhir);
+
+    let mut rows: Vec<Row> = calc::ambil(&ds, minggu, Some(korwil.as_str()), None)
+        .into_iter()
+        .filter(|x| x.terisi())
+        .collect();
+    calc::kumulatif(&ds, minggu, Some(korwil.as_str()), &mut rows, None);
+    rows.sort_by(|a, b| {
+        (a.lpk, a.kab.as_deref().unwrap_or(""), a.no.parse::<u32>().unwrap_or(0))
+            .cmp(&(b.lpk, b.kab.as_deref().unwrap_or(""), b.no.parse::<u32>().unwrap_or(0)))
+    });
+    let masalah_data = calc::cek_kualitas(&ds, &korwil, minggu, &rows, None);
+
+    let semua_idx: Vec<usize> = (0..rows.len()).collect();
+    let total = ringkas(&rows, &semua_idx);
+    let mut kelompok: BTreeMap<(bool, String), Vec<usize>> = BTreeMap::new();
+    for (i, x) in rows.iter().enumerate() {
+        kelompok.entry((x.lpk, x.kab.clone().unwrap_or_else(|| "-".to_string()))).or_default().push(i);
+    }
+    let grup: Vec<((bool, String), Ringkas)> =
+        kelompok.iter().map(|(k, idx)| (k.clone(), ringkas(&rows, idx))).collect();
+    let sumber_nama = |lpk: bool| if lpk { "LPK" } else { "Sanimas" };
+
+    // Permasalahan: (pokmas, kabupaten, uraian). Fisik di bawah target kurva S, pekerja nol, dan anomali data.
+    let mut masalah: Vec<(String, String, String)> = Vec::new();
+    let mut di_bawah_target = 0usize;
+    for x in &rows {
+        let kab = x.kab.clone().unwrap_or_else(|| "-".to_string());
+        if let Some(t) = x.ah {
+            if x.ag - t <= -0.10 {
+                di_bawah_target += 1;
+                masalah.push((
+                    x.label.clone(),
+                    kab.clone(),
+                    format!(
+                        "Fisik kumulatif {} di bawah target kurva S {} (selisih {} poin)",
+                        persen(x.ag * 100.0),
+                        persen(t * 100.0),
+                        format!("{:.1}", (x.ag - t) * 100.0).replace('.', ",")
+                    ),
+                ));
+            }
+        }
+        if x.p == 0 {
+            masalah.push((x.label.clone(), kab.clone(), "Belum ada pekerja minggu ini".to_string()));
+        }
+    }
+    for (i, kat, ket) in &masalah_data {
+        let x = &rows[*i];
+        masalah.push((x.label.clone(), x.kab.clone().unwrap_or_else(|| "-".to_string()), format!("{kat}: {ket}")));
+    }
+
+    let mut kab_unik: Vec<String> = rows.iter().map(|x| x.kab.clone().unwrap_or_else(|| "-".to_string()).trim().to_string()).collect();
+    kab_unik.sort();
+    kab_unik.dedup();
+    let periode = format!("{} – {}", tgl_id(mulai), tgl_id(selesai));
+
+    let mut blok: Vec<Blok> = Vec::new();
+    // Sampul
+    blok.push(Blok::Judul("LAPORAN BULANAN".to_string(), 32));
+    blok.push(Blok::Judul("KOORDINATOR FASILITATOR".to_string(), 28));
+    blok.push(Blok::Judul("SANIMAS SPALD-S DAN LPK".to_string(), 28));
+    blok.push(Blok::Judul(format!("Periode {periode}"), 24));
+    blok.push(Blok::Judul(korwil.clone(), 24));
+    blok.push(Blok::Judul(format!("Tahun Anggaran {tahun}"), 24));
+    blok.push(Blok::Halaman);
+    // Kata pengantar
+    blok.push(Blok::Sub("KATA PENGANTAR".to_string()));
+    blok.push(Blok::Paragraf(format!(
+        "Puji syukur kami panjatkan kehadirat Allah SWT. Laporan Bulanan Koordinator Fasilitator periode {periode} pada kegiatan Infrastruktur Berbasis Masyarakat (IBM) Pembangunan Sanimas SPALD-S dan Sanitasi LPK tahun anggaran {tahun} disusun sebagai bentuk pertanggungjawaban pelaksanaan tugas pendampingan."
+    )));
+    blok.push(Blok::Paragraf(format!(
+        "Laporan ini memuat progres pelaksanaan sampai dengan minggu ke-{minggu} (M{minggu}) dari rekapitulasi Lapming. Bagian yang bertanda {{{{merah}}}} belum tersedia di aplikasi dan perlu dilengkapi sebelum laporan dikirim."
+    )));
+    blok.push(Blok::Paragraf("Demikian laporan ini kami sampaikan. Terima kasih.".to_string()));
+    blok.push(Blok::Paragraf(format!("Cianjur, {} {}", BULAN_ID[selesai.month0() as usize], selesai.year())));
+    blok.push(Blok::Paragraf(korwil.clone()));
+    blok.push(Blok::Paragraf("Koordinator Wilayah".to_string()));
+    blok.push(Blok::Halaman);
+    // Daftar isi (per bab; nomor halaman tidak diisi di sini).
+    blok.push(Blok::Sub("DAFTAR ISI".to_string()));
+    for baris in [
+        "KATA PENGANTAR",
+        "BAB I PENDAHULUAN",
+        "BAB II PERKEMBANGAN PELAKSANAAN PROGRAM IBM SANITASI",
+        "BAB III RENCANA DAN REALISASI KEGIATAN PENDAMPINGAN",
+        "BAB IV PERMASALAHAN DAN RENCANA TINDAK LANJUT",
+        "BAB V KESIMPULAN DAN SARAN",
+        "LAMPIRAN",
+    ] {
+        blok.push(Blok::Paragraf(baris.to_string()));
+    }
+    blok.push(Blok::Halaman);
+    // Bab I
+    blok.push(Blok::Sub("BAB I PENDAHULUAN".to_string()));
+    blok.push(Blok::Paragraf(format!(
+        "Koordinator Wilayah {korwil} membawahi lokasi di {}. Pada laporan ini tercatat {} Pokmas dengan total pagu {}.",
+        kab_unik.join(", "),
+        total.pokmas,
+        rp(total.pagu)
+    )));
+    blok.push(Blok::Paragraf("Tabel 1.1 Lokasi dan pagu anggaran per kabupaten".to_string()));
+    let mut baris_lokasi: Vec<Vec<String>> = grup
+        .iter()
+        .map(|((lpk, kab), r)| vec![kab.clone(), sumber_nama(*lpk).to_string(), r.pokmas.to_string(), rp(r.pagu)])
+        .collect();
+    baris_lokasi.push(vec!["Total".to_string(), String::new(), total.pokmas.to_string(), rp(total.pagu)]);
+    blok.push(Blok::Tabel { header: kata(&["Kabupaten", "Sumber", "Pokmas", "Pagu"]), baris: baris_lokasi, lebar: vec![] });
+    blok.push(Blok::Halaman);
+    // Bab II
+    blok.push(Blok::Sub("BAB II PERKEMBANGAN PELAKSANAAN PROGRAM IBM SANITASI".to_string()));
+    blok.push(Blok::Sub("2.1 Kemajuan Keuangan dan Fisik".to_string()));
+    blok.push(Blok::Paragraf(format!(
+        "Sampai dengan minggu ke-{minggu}, realisasi keuangan kumulatif {} ({} dari pagu {}). Fisik kumulatif rata-rata tertimbang pagu {} dan keuangan kumulatif {}. Jumlah pekerja minggu ini {} orang, dengan HOK kumulatif {}.",
+        rp(total.realisasi),
+        persen(total.keuangan),
+        rp(total.pagu),
+        persen(total.fisik),
+        persen(total.keuangan),
+        total.pekerja,
+        total.hok
+    )));
+    blok.push(Blok::Paragraf("Tabel 2.1 Kemajuan keuangan dan fisik per kabupaten".to_string()));
+    let mut baris_kemajuan: Vec<Vec<String>> = grup
+        .iter()
+        .map(|((lpk, kab), r)| {
+            vec![
+                kab.clone(),
+                sumber_nama(*lpk).to_string(),
+                r.pokmas.to_string(),
+                rp(r.pagu),
+                rp(r.realisasi),
+                persen(r.keuangan),
+                persen(r.fisik),
+                r.pekerja.to_string(),
+                r.hok.to_string(),
+            ]
+        })
+        .collect();
+    baris_kemajuan.push(vec![
+        "Total".to_string(),
+        String::new(),
+        total.pokmas.to_string(),
+        rp(total.pagu),
+        rp(total.realisasi),
+        persen(total.keuangan),
+        persen(total.fisik),
+        total.pekerja.to_string(),
+        total.hok.to_string(),
+    ]);
+    blok.push(Blok::Tabel {
+        header: kata(&["Kabupaten", "Sumber", "Pokmas", "Pagu", "Realisasi", "Keuangan", "Fisik", "Pekerja", "HOK"]),
+        baris: baris_kemajuan,
+        lebar: vec![],
+    });
+    for ((lpk, kab), r) in &grup {
+        blok.push(Blok::Paragraf(format!(
+            "Kabupaten {kab} ({}): {} Pokmas dengan fisik kumulatif {} dan keuangan kumulatif {}, realisasi {} dari pagu {}.",
+            sumber_nama(*lpk),
+            r.pokmas,
+            persen(r.fisik),
+            persen(r.keuangan),
+            rp(r.realisasi),
+            rp(r.pagu)
+        )));
+    }
+    blok.push(Blok::Sub("2.2 Progres per Pokmas".to_string()));
+    blok.push(Blok::Paragraf("Tabel 2.2 Progres fisik dan keuangan per Pokmas".to_string()));
+    let baris_pokmas: Vec<Vec<String>> = rows
+        .iter()
+        .map(|x| {
+            vec![
+                x.label.clone(),
+                x.desa.clone(),
+                sumber_nama(x.lpk).to_string(),
+                persen(x.ag * 100.0),
+                x.ah.map(|t| persen(t * 100.0)).unwrap_or_else(|| "-".to_string()),
+                persen(x.ad * 100.0),
+                rp(x.aa),
+                x.p.to_string(),
+            ]
+        })
+        .collect();
+    blok.push(Blok::Tabel {
+        header: kata(&["Pokmas", "Desa", "Sumber", "Fisik kum.", "Target", "Keu. kum.", "Dana kum.", "Pekerja"]),
+        baris: baris_pokmas,
+        lebar: vec![],
+    });
+    blok.push(Blok::Sub("2.3 Tahap Perencanaan dan Konstruksi".to_string()));
+    blok.push(Blok::Paragraf(
+        "{{Narasi tahap perencanaan (RKM, PKS, pembukaan rekening) dan tahap konstruksi belum ada di data aplikasi. Lengkapi dari laporan lapangan.}}".to_string(),
+    ));
+    blok.push(Blok::Sub("2.4 Kampanye PHBS dan Partisipasi Masyarakat".to_string()));
+    blok.push(Blok::Paragraf("{{Belum ada di data aplikasi. Isi dari laporan kegiatan PHBS.}}".to_string()));
+    blok.push(Blok::Halaman);
+    // Bab III
+    blok.push(Blok::Sub("BAB III RENCANA DAN REALISASI KEGIATAN PENDAMPINGAN".to_string()));
+    blok.push(Blok::Paragraf(
+        "{{Kegiatan pendampingan Korwil (koordinasi, monitoring, evaluasi, rekomendasi) belum tercatat di aplikasi. Isi tabel di bawah sesuai kegiatan bulan ini.}}".to_string(),
+    ));
+    blok.push(Blok::Sub("3.1 Realisasi Kegiatan Bulan Ini".to_string()));
+    blok.push(Blok::Tabel {
+        header: kata(&["No", "Kegiatan", "Tanggal", "Keterangan"]),
+        baris: vec![kata(&["{{isi}}", "{{isi}}", "{{isi}}", "{{isi}}"])],
+        lebar: vec![],
+    });
+    blok.push(Blok::Sub("3.2 Rencana Kegiatan Bulan Depan".to_string()));
+    blok.push(Blok::Paragraf("{{Isi rencana kegiatan bulan berikutnya.}}".to_string()));
+    blok.push(Blok::Halaman);
+    // Bab IV
+    blok.push(Blok::Sub("BAB IV PERMASALAHAN DAN RENCANA TINDAK LANJUT".to_string()));
+    if masalah.is_empty() {
+        blok.push(Blok::Paragraf(format!("Dari data Lapming minggu ke-{minggu} tidak ditemukan permasalahan.")));
+    } else {
+        let pokmas_bermasalah: std::collections::BTreeSet<&str> = masalah.iter().map(|m| m.0.as_str()).collect();
+        blok.push(Blok::Paragraf(format!(
+            "Dari data Lapming minggu ke-{minggu} ditemukan {} permasalahan pada {} Pokmas. {di_bawah_target} Pokmas berada di bawah target kurva S.",
+            masalah.len(),
+            pokmas_bermasalah.len()
+        )));
+    }
+    blok.push(Blok::Paragraf("Tabel 4.1 Permasalahan dan rencana tindak lanjut".to_string()));
+    let baris_masalah: Vec<Vec<String>> = masalah
+        .iter()
+        .enumerate()
+        .map(|(i, (pokmas, kab, uraian))| {
+            vec![(i + 1).to_string(), pokmas.clone(), kab.clone(), uraian.clone(), "{{isi tindak lanjut}}".to_string()]
+        })
+        .collect();
+    blok.push(Blok::Tabel {
+        header: kata(&["No", "Pokmas", "Kabupaten", "Permasalahan", "Rencana tindak lanjut"]),
+        baris: baris_masalah,
+        lebar: vec![],
+    });
+    blok.push(Blok::Halaman);
+    // Bab V
+    blok.push(Blok::Sub("BAB V KESIMPULAN DAN SARAN".to_string()));
+    blok.push(Blok::Sub("5.1 Kesimpulan".to_string()));
+    blok.push(Blok::Paragraf(format!(
+        "Pada minggu ke-{minggu}, fisik kumulatif rata-rata {} dan keuangan kumulatif {}. {di_bawah_target} Pokmas berada di bawah target kurva S, dan {} temuan data perlu diverifikasi.",
+        persen(total.fisik),
+        persen(total.keuangan),
+        masalah_data.len()
+    )));
+    blok.push(Blok::Sub("5.2 Saran".to_string()));
+    blok.push(Blok::Paragraf(
+        "Tindak lanjuti permasalahan pada Bab IV, verifikasi data yang janggal di aplikasi sebelum laporan dikirim, dan lengkapi bagian yang bertanda merah.".to_string(),
+    ));
+    blok.push(Blok::Sub("LAMPIRAN".to_string()));
+    blok.push(Blok::Paragraf("{{Lampiran jadwal, kurva S, dan dokumentasi foto belum dilampirkan.}}".to_string()));
+
+    let bytes = laporan::tulis_docx(&blok).map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let disposisi = format!(
+        "attachment; filename=\"Laporan-Bulanan-{}-Bulan-{}.docx\"",
+        korwil.replace(' ', "-"),
+        q.bulan
+    );
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.wordprocessingml.document".to_string()),
+            (header::CONTENT_DISPOSITION, disposisi),
+        ],
+        bytes,
+    )
+        .into_response())
 }
 
 /// Pengaturan sumber data: link Sanimas dan LPK, serta tahun anggaran pekerjaan.
