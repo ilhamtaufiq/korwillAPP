@@ -118,9 +118,74 @@ async fn muat_log(db: &MySqlPool, korfas: &str, batas: usize) -> Result<(Vec<Log
     Ok((out, total as usize))
 }
 
+/// Data mingguan hanya untuk korfas tertentu. Cukup untuk cek kualitas satu pekerjaan, tanpa membaca seluruh data.
+async fn muat_dataset_korfas(db: &MySqlPool, korfas: &[String]) -> Result<Dataset, AppError> {
+    if korfas.is_empty() {
+        return Ok(Dataset::default());
+    }
+    let mut qb: QueryBuilder<MySql> =
+        QueryBuilder::new("SELECT CAST(jenis AS CHAR), sheet, data FROM lapming_data WHERE korfas IN (");
+    {
+        let mut sep = qb.separated(", ");
+        for k in korfas {
+            sep.push_bind(k.clone());
+        }
+    }
+    qb.push(") ORDER BY id");
+    let baris: Vec<(String, String, String)> = qb.build_query_as().fetch_all(db).await?;
+    let mut san = Book::default();
+    let mut lpk = Book::default();
+    let (mut ada_san, mut ada_lpk) = (false, false);
+    for (j, sheet, data) in baris {
+        let x: Row = serde_json::from_str(&data).map_err(internal)?;
+        let Some(minggu) = sheet.trim_start_matches('M').parse::<u32>().ok() else { continue };
+        let b = if j == "lpk" {
+            ada_lpk = true;
+            &mut lpk
+        } else {
+            ada_san = true;
+            &mut san
+        };
+        b.sheets.entry(minggu).or_default().push(x);
+    }
+    Ok(Dataset { san: ada_san.then_some(san), lpk: ada_lpk.then_some(lpk) })
+}
+
+/// Mengisi `nama_norm` untuk baris lama (yang masih ''). Nama kosong ditandai '#kosong' supaya tidak diulang.
+async fn isi_nama_norm_kosong(db: &MySqlPool) -> Result<(), AppError> {
+    loop {
+        let baris: Vec<(u64, String)> =
+            sqlx::query_as("SELECT id, data FROM lapming_data WHERE nama_norm = '' LIMIT 1000").fetch_all(db).await?;
+        if baris.is_empty() {
+            return Ok(());
+        }
+        for (id, data) in baris {
+            let x: Row = serde_json::from_str(&data).map_err(internal)?;
+            let norm = norm_nama(&x.nama);
+            let norm = if norm.is_empty() { "#kosong".to_string() } else { norm };
+            sqlx::query("UPDATE lapming_data SET nama_norm = ? WHERE id = ?")
+                .bind(norm)
+                .bind(id)
+                .execute(db)
+                .await?;
+        }
+    }
+}
+
+/// Nama Pokmas setelah alias diterapkan, dalam bentuk ternormalisasi (sama dengan efektif di endpoint proyek).
+fn efektif_nama(alias: &HashMap<String, String>, nama: &str) -> String {
+    let k = norm_nama(nama);
+    match alias.get(&k) {
+        Some(baku) => norm_nama(baku),
+        None => k,
+    }
+}
+
 #[derive(Deserialize)]
 pub struct ImporQuery {
     jenis: String,
+    /// Tahun anggaran untuk pekerjaan yang dibuat dari impor Sanimas (admin). Kosong = tidak membuat pekerjaan.
+    tahun: Option<u16>,
 }
 
 /// Mengimpor satu file sumber (Sanimas atau LPK) ke database. Perubahan dibanding pemuatan sebelumnya dicatat.
@@ -133,7 +198,7 @@ pub async fn impor(
     let user = current_user(&session, &st.db).await?;
     butuh_lapming(&user)?;
     let lpk = jenis_lpk(&q.jenis)?;
-    proses_impor(&st, lpk, body).await
+    proses_impor(&st, &user, lpk, q.tahun, body).await
 }
 
 #[derive(Deserialize)]
@@ -152,7 +217,7 @@ pub async fn impor_link(
     butuh_lapming(&user)?;
     let lpk = jenis_lpk(&q.jenis)?;
     let isi = unduh_link(&input.link).await?;
-    proses_impor(&st, lpk, Bytes::from(isi)).await
+    proses_impor(&st, &user, lpk, q.tahun, Bytes::from(isi)).await
 }
 
 fn jenis_lpk(jenis: &str) -> Result<bool, AppError> {
@@ -201,10 +266,18 @@ async fn unduh_link(link: &str) -> Result<Vec<u8>, AppError> {
     ))
 }
 
-async fn proses_impor(st: &AppState, lpk: bool, body: Bytes) -> Result<Json<Value>, AppError> {
+async fn proses_impor(
+    st: &AppState,
+    user: &User,
+    lpk: bool,
+    tahun: Option<u16>,
+    body: Bytes,
+) -> Result<Json<Value>, AppError> {
     if body.is_empty() {
         return Err(AppError::BadRequest("File kosong".to_string()));
     }
+    // Salinan untuk pembuatan pekerjaan di akhir, karena `body` sudah dipindahkan ke pembacaan file.
+    let salinan = body.clone();
     let book = tokio::task::spawn_blocking(move || read::baca_book(&body, lpk))
         .await
         .map_err(internal)?
@@ -231,13 +304,13 @@ async fn proses_impor(st: &AppState, lpk: bool, body: Bytes) -> Result<Json<Valu
     }
     let semua: Vec<&Row> = book.sheets.values().flatten().collect();
     for potong in semua.chunks(200) {
-        let mut qb: QueryBuilder<MySql> = QueryBuilder::new("INSERT INTO lapming_data (jenis, sheet, no_key, korfas, data) ");
+        let mut qb: QueryBuilder<MySql> = QueryBuilder::new("INSERT INTO lapming_data (jenis, sheet, no_key, korfas, data, nama_norm) ");
         let mut json_baris = Vec::with_capacity(potong.len());
         for x in potong {
             json_baris.push(serde_json::to_string(x).map_err(internal)?);
         }
         qb.push_values(potong.iter().zip(json_baris.iter()), |mut b, (x, j)| {
-            b.push_bind(jenis).push_bind(&x.sheet).push_bind(&x.no).push_bind(&x.korfas).push_bind(j);
+            b.push_bind(jenis).push_bind(&x.sheet).push_bind(&x.no).push_bind(&x.korfas).push_bind(j).push_bind(norm_nama(&x.nama));
         });
         qb.build().execute(&mut *tx).await?;
     }
@@ -254,12 +327,21 @@ async fn proses_impor(st: &AppState, lpk: bool, body: Bytes) -> Result<Json<Valu
     }
     tx.commit().await?;
 
+    // Impor Sanimas oleh admin juga membuat pekerjaan dari rekap yang sama, kegiatan "Sanimas".
+    let pekerjaan = match tahun {
+        Some(t) if !lpk && user.role == "admin" => {
+            Some(crate::import::buat_pekerjaan(&st.db, user, salinan, "Sanimas", t).await?)
+        }
+        _ => None,
+    };
+
     Ok(Json(json!({
         "sheet_dibaca": book.sheets.len(),
         "sheet_total": book.names.len(),
         "baris": semua.len(),
         "pertama_kali": !punya_lama,
         "perubahan": entri.len(),
+        "pekerjaan": pekerjaan,
     })))
 }
 
@@ -658,9 +740,23 @@ pub async fn proyek(
     };
     let cari = efektif(&pokmas);
 
-    let baris: Vec<(String, String)> = sqlx::query_as("SELECT CAST(jenis AS CHAR), data FROM lapming_data ORDER BY id")
-        .fetch_all(&st.db)
-        .await?;
+    // Hanya baris yang nama ternormalisasinya bisa menjadi pokmas ini (nama itu sendiri, atau nama sumber alias-nya).
+    isi_nama_norm_kosong(&st.db).await?;
+    let mut kandidat: Vec<String> = vec![cari.clone()];
+    for (k, baku) in &alias {
+        if norm_nama(baku) == cari && !kandidat.contains(k) {
+            kandidat.push(k.clone());
+        }
+    }
+    let mut qb: QueryBuilder<MySql> = QueryBuilder::new("SELECT CAST(jenis AS CHAR), data FROM lapming_data WHERE nama_norm IN (");
+    {
+        let mut sep = qb.separated(", ");
+        for k in &kandidat {
+            sep.push_bind(k.clone());
+        }
+    }
+    qb.push(") ORDER BY id");
+    let baris: Vec<(String, String)> = qb.build_query_as().fetch_all(&st.db).await?;
     let mut items: Vec<(u32, Value)> = Vec::new();
     // (minggu, lpk, no, korfas, sheet, nama, ag, ad) untuk pengecekan anomali di bawah.
     let mut cocok: Vec<(u32, bool, String, String, String, String, f64, f64)> = Vec::new();
@@ -705,7 +801,10 @@ pub async fn proyek(
     // (Fisik turun, tidak menjumlah, di atas 100%, dan lain-lain) yang mengenai Pokmas ini.
     let mut anomali: Vec<(u32, Value)> = Vec::new();
     if !cocok.is_empty() {
-        let ds = muat_dataset(&st.db).await?;
+        let mut korfas_pilih: Vec<String> = cocok.iter().map(|c| c.3.clone()).collect();
+        korfas_pilih.sort();
+        korfas_pilih.dedup();
+        let ds = muat_dataset_korfas(&st.db, &korfas_pilih).await?;
         let mut sudah: HashMap<(String, u32), (Vec<Row>, Vec<(usize, String, String)>)> = HashMap::new();
         for (minggu, lpk, no, korfas, sheet, nama, ag, ad) in cocok.iter().cloned() {
             let sumber = if lpk { "LPK" } else { "Sanimas" };
@@ -723,7 +822,8 @@ pub async fn proyek(
                 ));
             }
             let (rows_m, masalah) = sudah.entry((korfas.clone(), minggu)).or_insert_with(|| {
-                let rows_m = calc::ambil(&ds, minggu, Some(korfas.as_str()), None);
+                let mut rows_m = calc::ambil(&ds, minggu, Some(korfas.as_str()), None);
+                calc::kumulatif(&ds, minggu, Some(korfas.as_str()), &mut rows_m, None);
                 let masalah = calc::cek_kualitas(&ds, &korfas, minggu, &rows_m, None);
                 (rows_m, masalah)
             });
@@ -754,6 +854,377 @@ pub async fn proyek(
 }
 
 #[derive(Deserialize)]
+pub struct TrenQuery {
+    /// "lpk" untuk LPK. Kosong atau lainnya untuk Sanimas.
+    sumber: Option<String>,
+    /// Tahap, mis. "Tahap 1". Kosong = semua tahap.
+    tahap: Option<String>,
+}
+
+/// Tren progres per minggu, dirata-rata tertimbang pagu. Bisa difilter sumber (Sanimas/LPK) dan tahap.
+/// Juga mengembalikan daftar tahap yang ada untuk sumber itu, untuk pilihan filter.
+pub async fn tren(
+    State(st): State<AppState>,
+    session: Session,
+    Query(q): Query<TrenQuery>,
+) -> Result<Json<Value>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    butuh_lapming(&user)?;
+    let ds = muat_dataset(&st.db).await?;
+    let lpk_saja = q.sumber.as_deref() == Some("lpk");
+    let tahap_pilih = q.tahap.as_deref().map(str::trim).filter(|t| !t.is_empty());
+    let mut tahap_ada: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    // minggu -> (jumlah fisik*pagu, jumlah keuangan*pagu, jumlah pagu, jumlah pokmas)
+    let mut hitung: BTreeMap<u32, (f64, f64, f64, usize)> = BTreeMap::new();
+    for (lpk, b) in ds.books() {
+        if lpk != lpk_saja {
+            continue;
+        }
+        for (&w, rows) in &b.sheets {
+            for x in rows.iter().filter(|x| x.terisi() && x.pagu > 0.0) {
+                let tahap_baris = x.tahap.as_deref().map(str::trim).unwrap_or("");
+                if !tahap_baris.is_empty() {
+                    tahap_ada.insert(tahap_baris.to_string());
+                }
+                if let Some(pilih) = tahap_pilih {
+                    if tahap_baris != pilih {
+                        continue;
+                    }
+                }
+                let e = hitung.entry(w).or_insert((0.0, 0.0, 0.0, 0));
+                e.0 += x.ag * x.pagu;
+                e.1 += x.ad * x.pagu;
+                e.2 += x.pagu;
+                e.3 += 1;
+            }
+        }
+    }
+    let items: Vec<Value> = hitung
+        .into_iter()
+        .map(|(w, (fis, keu, pagu, n))| {
+            json!({ "minggu": w, "fisik": fis / pagu * 100.0, "keuangan": keu / pagu * 100.0, "pokmas": n })
+        })
+        .collect();
+    let tahap: Vec<String> = tahap_ada.into_iter().collect();
+    Ok(Json(json!({ "items": items, "tahap": tahap })))
+}
+
+#[derive(Deserialize)]
+pub struct MingguQuery {
+    /// "lpk" untuk LPK. Kosong atau lainnya untuk Sanimas.
+    sumber: Option<String>,
+    /// Nomor minggu (M1 = 1). Kosong = minggu terakhir yang ada.
+    minggu: Option<u32>,
+    tahap: Option<String>,
+    korfas: Option<String>,
+}
+
+/// Detail progres satu minggu, seperti laporan mingguan: ringkasan, tabel per Pokmas, penggunaan dana,
+/// RPDB, dan anomali. Ringkasan dirata-rata tertimbang pagu. Persen dikirim dalam skala 0-100.
+pub async fn minggu_detail(
+    State(st): State<AppState>,
+    session: Session,
+    Query(q): Query<MingguQuery>,
+) -> Result<Json<Value>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    butuh_lapming(&user)?;
+    let ds = muat_dataset(&st.db).await?;
+    let lpk_saja = q.sumber.as_deref() == Some("lpk");
+    let tahap = q.tahap.as_deref().map(str::trim).filter(|t| !t.is_empty());
+    let korfas = q.korfas.as_deref().map(str::trim).filter(|t| !t.is_empty());
+
+    let mut tersedia: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
+    let mut tahap_ada: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut korfas_ada: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for (lpk, b) in ds.books() {
+        if lpk != lpk_saja {
+            continue;
+        }
+        for (&w, rows) in &b.sheets {
+            for x in rows.iter().filter(|x| x.terisi()) {
+                tersedia.insert(w);
+                if let Some(t) = x.tahap.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+                    tahap_ada.insert(t.to_string());
+                }
+                if !x.korfas.trim().is_empty() {
+                    korfas_ada.insert(x.korfas.trim().to_string());
+                }
+            }
+        }
+    }
+    let tersedia_vec: Vec<u32> = tersedia.iter().copied().collect();
+    let Some(&terakhir) = tersedia.iter().next_back() else {
+        return Ok(Json(json!({ "minggu_tersedia": tersedia_vec, "minggu": null, "ringkasan": null,
+                               "baris": [], "tahap": [], "korfas": [], "anomali": [] })));
+    };
+    let minggu = q.minggu.filter(|m| tersedia.contains(m)).unwrap_or(terakhir);
+
+    let mut baris: Vec<Row> = calc::ambil(&ds, minggu, korfas, tahap)
+        .into_iter()
+        .filter(|x| x.lpk == lpk_saja && x.terisi())
+        .collect();
+    calc::kumulatif(&ds, minggu, korfas, &mut baris, tahap);
+    baris.sort_by_key(|x| x.no.parse::<u32>().unwrap_or(0));
+
+    // Anomali per Pokmas untuk minggu ini: temuan cek kualitas dan fisik melebihi keuangan.
+    let mut anomali_map: HashMap<(bool, String), Vec<String>> = HashMap::new();
+    let korfas_baris: std::collections::BTreeSet<String> = baris.iter().map(|x| x.korfas.clone()).collect();
+    for k in &korfas_baris {
+        let mut rows_k = calc::ambil(&ds, minggu, Some(k.as_str()), tahap);
+        calc::kumulatif(&ds, minggu, Some(k.as_str()), &mut rows_k, tahap);
+        for (i, kat, _) in calc::cek_kualitas(&ds, k, minggu, &rows_k, tahap) {
+            let r = &rows_k[i];
+            anomali_map.entry((r.lpk, r.no.clone())).or_default().push(kat);
+        }
+        for r in rows_k.iter().filter(|r| r.terisi() && r.ag > r.ad + 0.0005) {
+            anomali_map.entry((r.lpk, r.no.clone())).or_default().push("Fisik melebihi keuangan".to_string());
+        }
+    }
+    let anomali_total: usize = baris
+        .iter()
+        .map(|x| anomali_map.get(&(x.lpk, x.no.clone())).map_or(0, |v| v.len()))
+        .sum();
+
+    // RPDB per Pokmas (setelah alias). Tahap bertanggal setelah tanggal laporan tidak dihitung.
+    let pokmas_data = muat_pokmas(&st.db).await?;
+    let tgl_lap = baris.iter().filter_map(|x| x.selesai).max();
+    let rpdb_baris: Vec<Option<i64>> = baris
+        .iter()
+        .map(|x| {
+            let k = efektif_nama(&pokmas_data.alias, &x.nama);
+            let masuk: Vec<i64> = pokmas_data
+                .rpdb
+                .get(&k)
+                .map(|tahap| {
+                    tahap
+                        .iter()
+                        .filter(|t| t.jumlah.is_some() && (t.tanggal.is_none() || tgl_lap.is_none() || t.tanggal.unwrap() <= tgl_lap.unwrap()))
+                        .filter_map(|t| t.jumlah)
+                        .collect()
+                })
+                .unwrap_or_default();
+            if masuk.is_empty() { None } else { Some(masuk.iter().sum()) }
+        })
+        .collect();
+    let rpdb_total: i64 = rpdb_baris.iter().flatten().sum();
+
+    let pagu_total: f64 = baris.iter().map(|x| x.pagu).sum();
+    let rata = |f: fn(&Row) -> f64| -> f64 {
+        if pagu_total > 0.0 {
+            baris.iter().map(|x| f(x) * x.pagu).sum::<f64>() / pagu_total * 100.0
+        } else {
+            0.0
+        }
+    };
+    let (tgt_jumlah, tgt_pagu) = baris
+        .iter()
+        .filter_map(|x| x.ah.map(|t| (t * x.pagu, x.pagu)))
+        .fold((0.0, 0.0), |(a, b), (c, d)| (a + c, b + d));
+    let ringkasan = json!({
+        "pokmas": baris.len(),
+        "pagu_total": pagu_total,
+        "fisik_kumulatif": rata(|x| x.ag),
+        "keuangan_kumulatif": rata(|x| x.ad),
+        "target": if tgt_pagu > 0.0 { json!(tgt_jumlah / tgt_pagu * 100.0) } else { Value::Null },
+        "realisasi": baris.iter().map(|x| x.aa).sum::<f64>(),
+        "pekerja": baris.iter().map(|x| x.p).sum::<i64>(),
+        "hok": baris.iter().map(|x| x.r).sum::<i64>(),
+        "rpdb_total": rpdb_total,
+        "anomali": anomali_total,
+    });
+    let mut anomali_daftar: Vec<Value> = Vec::new();
+    let daftar: Vec<Value> = baris
+        .iter()
+        .enumerate()
+        .map(|(idx, x)| {
+            let tgl = |d: Option<NaiveDate>| d.map(|d| d.format("%Y-%m-%d").to_string());
+            let kat = anomali_map.get(&(x.lpk, x.no.clone())).cloned().unwrap_or_default();
+            for k in &kat {
+                anomali_daftar.push(json!({ "no": x.no, "pokmas": x.label, "kategori": k }));
+            }
+            let rpdb = rpdb_baris[idx];
+            json!({
+                "no": x.no,
+                "pokmas": x.label,
+                "desa": x.desa,
+                "korfas": x.korfas,
+                "tahap": x.tahap,
+                "mulai": tgl(x.mulai),
+                "selesai": tgl(x.selesai),
+                "pagu": x.pagu,
+                "pekerja": x.p,
+                "hok": x.r,
+                "fisik_minggu_ini": x.af * 100.0,
+                "fisik_kumulatif": x.ag * 100.0,
+                "target": x.ah.map(|t| t * 100.0),
+                "keuangan_minggu_ini": x.ac * 100.0,
+                "keuangan_kumulatif": x.ad * 100.0,
+                "dana_minggu_ini": x.z,
+                "dana_kumulatif": x.aa,
+                "kum_upah": x.b.s,
+                "kum_material": x.b.u,
+                "kum_bop": x.b.w,
+                "rpdb": rpdb,
+                "saldo_rpdb": rpdb.map(|r| r as f64 - x.aa),
+                "anomali": kat,
+            })
+        })
+        .collect();
+    Ok(Json(json!({
+        "minggu_tersedia": tersedia_vec,
+        "minggu": minggu,
+        "ringkasan": ringkasan,
+        "baris": daftar,
+        "anomali": anomali_daftar,
+        "tahap": tahap_ada.into_iter().collect::<Vec<String>>(),
+        "korfas": korfas_ada.into_iter().collect::<Vec<String>>(),
+    })))
+}
+
+/// Pengaturan sumber data: link Sanimas dan LPK, serta tahun anggaran pekerjaan.
+pub struct Pengaturan {
+    pub link_san: String,
+    pub link_lpk: String,
+    pub tahun_anggaran: u16,
+}
+
+pub async fn baca_pengaturan(db: &MySqlPool) -> Result<Pengaturan, AppError> {
+    let baris: Vec<(String, String)> = sqlx::query_as("SELECT kunci, nilai FROM lapming_pengaturan").fetch_all(db).await?;
+    let mut out = Pengaturan { link_san: String::new(), link_lpk: String::new(), tahun_anggaran: 2026 };
+    for (k, v) in baris {
+        match k.as_str() {
+            "link_san" => out.link_san = v,
+            "link_lpk" => out.link_lpk = v,
+            "tahun_anggaran" => out.tahun_anggaran = v.parse().unwrap_or(2026),
+            _ => {}
+        }
+    }
+    Ok(out)
+}
+
+/// Pengaturan sumber dan 10 update terakhir, untuk dashboard dan halaman Pengaturan.
+pub async fn update_status(State(st): State<AppState>, session: Session) -> Result<Json<Value>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    butuh_lapming(&user)?;
+    let p = baca_pengaturan(&st.db).await?;
+    let riwayat: Vec<(String, String, String, i32, i32, i32, Option<String>, String)> = sqlx::query_as(
+        "SELECT DATE_FORMAT(waktu, '%Y-%m-%d %H:%i:%s'), CAST(jenis AS CHAR), status, baris, perubahan, pekerjaan_baru, catatan, pengguna \
+         FROM lapming_update_log ORDER BY id DESC LIMIT 10",
+    )
+    .fetch_all(&st.db)
+    .await?;
+    let riwayat: Vec<Value> = riwayat
+        .into_iter()
+        .map(|(waktu, jenis, status, baris, perubahan, pekerjaan, catatan, pengguna)| {
+            json!({ "waktu": waktu, "jenis": jenis, "status": status, "baris": baris, "perubahan": perubahan,
+                    "pekerjaan_baru": pekerjaan, "catatan": catatan, "pengguna": pengguna })
+        })
+        .collect();
+    Ok(Json(json!({
+        "link_san": p.link_san,
+        "link_lpk": p.link_lpk,
+        "tahun_anggaran": p.tahun_anggaran,
+        "bisa_ubah": user.role == "admin",
+        "riwayat": riwayat,
+    })))
+}
+
+#[derive(Deserialize)]
+pub struct PengaturanIn {
+    link_san: String,
+    link_lpk: String,
+    tahun_anggaran: u16,
+}
+
+/// Menyimpan link sumber dan tahun anggaran. Hanya admin.
+pub async fn pengaturan_simpan(
+    State(st): State<AppState>,
+    session: Session,
+    Json(input): Json<PengaturanIn>,
+) -> Result<Json<Value>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    if user.role != "admin" {
+        return Err(AppError::NotFound);
+    }
+    let (san, lpk) = (input.link_san.trim(), input.link_lpk.trim());
+    for link in [san, lpk] {
+        if !link.contains("google.com/") || link.len() > 1000 {
+            return Err(AppError::BadRequest("Link harus berupa link Google Sheets atau Drive".to_string()));
+        }
+    }
+    if !(2000..=2100).contains(&input.tahun_anggaran) {
+        return Err(AppError::BadRequest("Tahun tidak valid".to_string()));
+    }
+    let mut tx = st.db.begin().await?;
+    for (k, v) in [
+        ("link_san", san.to_string()),
+        ("link_lpk", lpk.to_string()),
+        ("tahun_anggaran", input.tahun_anggaran.to_string()),
+    ] {
+        sqlx::query("INSERT INTO lapming_pengaturan (kunci, nilai) VALUES (?, ?) ON DUPLICATE KEY UPDATE nilai = VALUES(nilai)")
+            .bind(k)
+            .bind(v)
+            .execute(&mut *tx)
+            .await?;
+    }
+    tx.commit().await?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+fn pesan_galat(e: &AppError) -> String {
+    match e {
+        AppError::BadRequest(m) | AppError::Conflict(m) => m.clone(),
+        AppError::NotFound => "Data tidak ditemukan".to_string(),
+        AppError::Unauthorized => "Belum login".to_string(),
+        AppError::Internal(_) => "Terjadi kesalahan di server".to_string(),
+    }
+}
+
+/// Memperbarui data Sanimas dan LPK dari link yang tersimpan, lalu mencatat hasilnya di log.
+/// Sanimas juga membuat pekerjaan baru (admin). Satu jenis gagal tidak menghentikan yang lain.
+pub async fn perbarui(State(st): State<AppState>, session: Session) -> Result<Json<Value>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    butuh_lapming(&user)?;
+    let p = baca_pengaturan(&st.db).await?;
+    let mut hasil: Vec<Value> = Vec::new();
+    for (jenis, link) in [("san", p.link_san.clone()), ("lpk", p.link_lpk.clone())] {
+        let lpk = jenis == "lpk";
+        let tahun = if lpk { None } else { Some(p.tahun_anggaran) };
+        let coba: Result<Value, AppError> = async {
+            let isi = unduh_link(&link).await?;
+            let Json(v) = proses_impor(&st, &user, lpk, tahun, Bytes::from(isi)).await?;
+            Ok(v)
+        }
+        .await;
+        let (status, baris, perubahan, pekerjaan, catatan) = match coba {
+            Ok(v) => (
+                "berhasil",
+                v["baris"].as_i64().unwrap_or(0),
+                v["perubahan"].as_i64().unwrap_or(0),
+                v["pekerjaan"]["ditambahkan"].as_i64().unwrap_or(0),
+                None,
+            ),
+            Err(e) => ("gagal", 0, 0, 0, Some(pesan_galat(&e))),
+        };
+        sqlx::query(
+            "INSERT INTO lapming_update_log (pengguna, jenis, status, baris, perubahan, pekerjaan_baru, catatan) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&user.username)
+        .bind(jenis)
+        .bind(status)
+        .bind(baris as i32)
+        .bind(perubahan as i32)
+        .bind(pekerjaan as i32)
+        .bind(&catatan)
+        .execute(&st.db)
+        .await?;
+        hasil.push(json!({ "jenis": jenis, "status": status, "baris": baris, "perubahan": perubahan,
+                           "pekerjaan_baru": pekerjaan, "catatan": catatan }));
+    }
+    Ok(Json(json!({ "hasil": hasil })))
+}
+
+#[derive(Deserialize)]
 pub struct AnomaliQuery {
     korfas: Option<String>,
 }
@@ -770,6 +1241,14 @@ pub async fn anomali_daftar(
     let user = current_user(&session, &st.db).await?;
     butuh_lapming(&user)?;
     let ds = muat_dataset(&st.db).await?;
+    // Peta nama Pokmas (setelah alias) ke id pekerjaan, supaya setiap anomali bisa diklik ke detailnya.
+    let alias = muat_pokmas(&st.db).await?.alias;
+    let mut proyek_id: HashMap<String, u64> = HashMap::new();
+    let daftar_proyek: Vec<(u64, String)> =
+        sqlx::query_as("SELECT id, pokmas FROM projects WHERE deleted_at IS NULL ORDER BY id").fetch_all(&st.db).await?;
+    for (id, pokmas) in daftar_proyek {
+        proyek_id.entry(efektif_nama(&alias, &pokmas)).or_insert(id);
+    }
     let pilih: Vec<String> = match q.korfas.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         Some(k) => vec![k.to_string()],
         None => calc::daftar_korfas(&ds),
@@ -782,10 +1261,12 @@ pub async fn anomali_daftar(
     let mut hasil: Vec<(String, u32, Value)> = Vec::new();
     for k in &pilih {
         for &w in &minggu_ada {
-            let rows = calc::ambil(&ds, w, Some(k.as_str()), None);
+            let mut rows = calc::ambil(&ds, w, Some(k.as_str()), None);
             if rows.is_empty() {
                 continue;
             }
+            // Kumulatif upah, material, BOP harus dihitung dulu; tanpa ini cek "Selisih biaya" salah.
+            calc::kumulatif(&ds, w, Some(k.as_str()), &mut rows, None);
             let sumber = |lpk: bool| if lpk { "LPK" } else { "Sanimas" };
             for (i, kat, ket) in calc::cek_kualitas(&ds, k, w, &rows, None) {
                 let r = &rows[i];
@@ -824,6 +1305,14 @@ pub async fn anomali_daftar(
     }
     hasil.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
     let total = hasil.len();
-    let items: Vec<Value> = hasil.into_iter().take(ANOMALI_BATAS).map(|(_, _, v)| v).collect();
+    let items: Vec<Value> = hasil
+        .into_iter()
+        .take(ANOMALI_BATAS)
+        .map(|(_, _, mut v)| {
+            let nama = v["pokmas"].as_str().unwrap_or("").to_string();
+            v["proyek_id"] = json!(proyek_id.get(&efektif_nama(&alias, &nama)).copied());
+            v
+        })
+        .collect();
     Ok(Json(json!({ "total": total, "items": items, "batas": ANOMALI_BATAS })))
 }

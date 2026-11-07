@@ -120,6 +120,13 @@ fn router(state: AppState) -> Router {
         .route("/api/lapming/laporan-file/:format", post(lapming::api::laporan_file))
         .route("/api/lapming/log", get(lapming::api::log_daftar))
         .route("/api/lapming/anomali", get(lapming::api::anomali_daftar))
+        .route("/api/lapming/tren", get(lapming::api::tren))
+        .route("/api/lapming/minggu", get(lapming::api::minggu_detail))
+        .route(
+            "/api/lapming/update",
+            get(lapming::api::update_status).post(lapming::api::perbarui),
+        )
+        .route("/api/lapming/pengaturan", put(lapming::api::pengaturan_simpan))
         .route("/api/lapming/pokmas", get(lapming::api::pokmas_daftar))
         .route("/api/lapming/rpdb", put(lapming::api::rpdb_simpan))
         .route(

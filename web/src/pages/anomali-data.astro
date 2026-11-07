@@ -50,11 +50,13 @@ function tampilkan() {
         <td class="px-4 py-2 text-ink2">${esc(a.korfas)}</td>
         <td class="whitespace-nowrap px-4 py-2 font-semibold">${esc(a.sheet)}</td>
         <td class="px-4 py-2 text-ink2">${esc(a.sumber)}</td>
-        <td class="px-4 py-2">${esc(a.pokmas)}</td>
+        <td class="px-4 py-2">${a.proyek_id ? `<a href="/detail-proyek.html?id=${a.proyek_id}" class="font-semibold text-primary hover:underline">${esc(a.pokmas)}</a>` : esc(a.pokmas)}</td>
         <td class="px-4 py-2 font-semibold text-warn">${esc(a.kategori)}</td>
         <td class="px-4 py-2 text-ink2">${esc(a.keterangan)}</td>
       </tr>`).join('')
-    : '<tr><td colspan="6" class="px-4 py-6 text-center text-ink3">Tidak ada anomali yang cocok.</td></tr>';
+    : `<tr><td colspan="6" class="px-4 py-6 text-center text-ink3">${semua.length
+      ? 'Tidak ada anomali yang cocok dengan pencarian.'
+      : 'Tidak ada anomali. Semua data Lapming lolos pemeriksaan.'}</td></tr>`;
   const info = document.getElementById('info');
   info.textContent = `Menampilkan ${daftar.length} dari ${semua.length} anomali` +
     (semua.length >= 5000 ? ' (dibatasi 5000 baris pertama; persempit dengan memilih korfas)' : '');

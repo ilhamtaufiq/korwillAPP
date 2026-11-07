@@ -8,11 +8,11 @@ use axum::{
 use calamine::{open_workbook_auto_from_rs, Data, Range, Reader};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sqlx::{MySql, Transaction};
+use sqlx::{MySql, MySqlPool, Transaction};
 use tower_sessions::Session;
 
 use crate::{
-    auth::{current_user, hash_password},
+    auth::{current_user, hash_password, User},
     error::{internal, AppError},
     members::link_tfl_by_name,
     projects::require_admin,
@@ -82,11 +82,18 @@ pub async fn import_xlsx(
         return Err(AppError::BadRequest("File kosong".to_string()));
     }
 
+    Ok(Json(buat_pekerjaan(&st.db, &user, body, &kegiatan, query.tahun).await?))
+}
+
+/// Membuat pekerjaan dari rekap Lapming: satu per kombinasi kabupaten, kecamatan, desa, dan pokmas.
+/// Dipakai oleh halaman Daftar Pekerjaan dan oleh impor Sanimas di Laporan Lapming (admin saja).
+pub async fn buat_pekerjaan(db: &MySqlPool, user: &User, body: Bytes, kegiatan: &str, tahun: u16) -> Result<Value, AppError> {
+    let kegiatan = kegiatan.to_string();
     let (rows, sheets) = tokio::task::spawn_blocking(move || read_lapming(&body))
         .await
         .map_err(internal)??;
 
-    let mut tx = st.db.begin().await?;
+    let mut tx = db.begin().await?;
     let mut inserted = 0u32;
     let mut already = 0u32;
     let mut invalid = 0u32;
@@ -118,7 +125,7 @@ pub async fn import_xlsx(
         .bind(&row.desa)
         .bind(&row.pokmas)
         .bind(&kegiatan)
-        .bind(query.tahun)
+        .bind(tahun)
         .fetch_optional(&mut *tx)
         .await?;
         if let Some(id) = exists {
@@ -150,7 +157,7 @@ pub async fn import_xlsx(
         .bind(&row.desa)
         .bind(&row.kecamatan)
         .bind(&row.kabupaten)
-        .bind(query.tahun)
+        .bind(tahun)
         .bind(&row.korwil)
         .bind(&row.tfl)
         .bind(&row.fm_pemberdayaan)
@@ -174,17 +181,17 @@ pub async fn import_xlsx(
     tx.commit().await?;
 
     for (project_id, nama) in &links {
-        link_tfl_by_name(&st.db, *project_id, nama).await?;
+        link_tfl_by_name(db, *project_id, nama).await?;
     }
 
-    Ok(Json(json!({
+    Ok(json!({
         "sheet_dibaca": sheets,
         "baris_ditemukan": rows.len(),
         "ditambahkan": inserted,
         "sudah_ada": already,
         "tidak_valid": invalid,
         "akun_baru": accounts,
-    })))
+    }))
 }
 
 fn push_links(links: &mut Vec<(u64, String)>, project_id: u64, row: &LapmingRow) {

@@ -26,6 +26,12 @@ import Shell from '../layouts/Shell.astro';
       </div>
     </div>
 
+    <!-- Banner anomali Lapming: hanya untuk admin dan korwil, muncul bila ada temuan -->
+    <a id="anomali-banner" href="/anomali-data.html" hidden
+      class="mb-4 flex items-center justify-between gap-3 rounded-lg border border-warn-line bg-warn-soft px-4 py-3 text-sm text-warn hover:opacity-90">
+      <span class="flex items-center gap-2 font-semibold"><span class="material-symbols-outlined">rule</span>Ada <span id="anomali-jumlah"></span> di data Lapming</span>
+      <span class="font-semibold underline">Cek sekarang</span>
+    </a>
     <!-- KPI cards -->
     <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div class="flex flex-col justify-between rounded-lg border border-line bg-white p-4">
@@ -38,7 +44,7 @@ import Shell from '../layouts/Shell.astro';
         </div>
         <div class="mt-4 flex items-center justify-between border-t border-line pt-3 text-xs">
           <span id="kpi-aktif" class="font-semibold text-primary"></span>
-          <span id="kpi-belum" class="text-ink3"></span>
+          <a id="kpi-belum" href="/daftar-proyek.html" class="text-ink3 hover:text-primary hover:underline"></a>
         </div>
       </div>
 
@@ -85,6 +91,48 @@ import Shell from '../layouts/Shell.astro';
           <span class="text-ink2">Semua sel foto terisi</span>
           <span id="kpi-lengkap-sub" class="text-ink3"></span>
         </div>
+      </div>
+    </section>
+
+    <!-- Data Lapming: satu tombol untuk memperbarui dari link sumber yang tersimpan -->
+    <section id="card-update" hidden class="mt-6 rounded-lg border border-line bg-white p-4">
+      <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 class="font-semibold">Data Lapming</h2>
+          <p id="update-info" class="text-sm text-ink3">Memuat...</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a id="update-pengaturan" href="/pengaturan.html" hidden class="inline-flex h-11 items-center rounded-lg border border-line px-4 text-sm font-semibold text-ink2 hover:bg-muted">Pengaturan sumber</a>
+          <button id="btn-update" type="button" class="h-11 rounded-lg bg-primary px-4 font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Perbarui data</button>
+        </div>
+      </div>
+      <details class="mt-3">
+        <summary class="cursor-pointer text-sm font-semibold text-ink2">Log pembaruan terakhir</summary>
+        <ul id="update-log" class="mt-2 divide-y divide-line text-sm"></ul>
+      </details>
+    </section>
+
+    <!-- Grafik progres: status pekerjaan dan persen foto terisi per kabupaten -->
+    <section class="mt-6 grid gap-6 lg:grid-cols-2">
+      <div class="rounded-lg border border-line bg-white p-4">
+        <h2 class="font-semibold">Status Pekerjaan</h2>
+        <p class="text-sm text-ink3">Jumlah pekerjaan menurut progres foto</p>
+        <div id="chart-status" class="mt-4 flex flex-col gap-4"></div>
+      </div>
+      <div class="rounded-lg border border-line bg-white p-4">
+        <h2 class="font-semibold">Progres Lapming per Minggu</h2>
+        <p class="text-sm text-ink3">Sanimas, rata-rata tertimbang pagu (data spreadsheet)</p>
+        <div class="mt-4 grid gap-2 sm:grid-cols-3">
+          <select id="tren-sumber" aria-label="Sumber data" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
+            <option value="san">Sanimas</option>
+            <option value="lpk">LPK</option>
+          </select>
+          <select id="tren-tahap" aria-label="Tahap" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
+            <option value="">Semua tahap</option>
+          </select>
+          <select id="tren-periode" aria-label="Periode sampai minggu" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none"></select>
+        </div>
+        <div id="chart-tren" class="mt-4 flex flex-col gap-4"></div>
       </div>
     </section>
 
@@ -283,6 +331,148 @@ function feedHtml(f) {
     </li>`;
 }
 
+// Grafik batang sederhana dengan CSS: status pekerjaan dan persen foto terisi per kabupaten.
+function renderGrafik(data) {
+  const status = [
+    ['belum_mulai', 'Belum mulai', 'bg-line'],
+    ['berjalan', 'Berjalan', 'bg-warn-line'],
+    ['lengkap', 'Lengkap', 'bg-primary'],
+  ];
+  const total = data.pekerjaan.length;
+  document.getElementById('chart-status').innerHTML = total
+    ? status.map(([kode, label, warna]) => {
+        const n = data.pekerjaan.filter((p) => p.status === kode).length;
+        const pct = Math.round((n / total) * 100);
+        return `<div>
+          <div class="flex justify-between text-sm"><span class="text-ink2">${label}</span><span class="font-semibold">${angka(n)} <span class="text-ink3">(${pct}%)</span></span></div>
+          <div class="mt-1 h-3 overflow-hidden rounded-full bg-muted"><div class="h-full ${warna}" style="width:${pct}%"></div></div>
+        </div>`;
+      }).join('')
+    : '<p class="text-sm text-ink3">Belum ada pekerjaan.</p>';
+
+}
+
+// Grafik garis tren progres Lapming per minggu: fisik dan keuangan kumulatif Sanimas (dari spreadsheet).
+// Data tren mentah dari server (sudah difilter sumber dan tahap). Periode dipilih di browser.
+let trenData = [];
+
+// Mengambil tren sesuai filter sumber dan tahap, lalu mengisi pilihan tahap dan periode.
+async function muatTren() {
+  const sumber = document.getElementById('tren-sumber').value;
+  const tahap = document.getElementById('tren-tahap').value;
+  const q = new URLSearchParams({ sumber });
+  if (tahap) q.set('tahap', tahap);
+  const r = await api('GET', `/api/lapming/tren?${q}`);
+
+  const tsel = document.getElementById('tren-tahap');
+  tsel.innerHTML = '<option value="">Semua tahap</option>' +
+    r.tahap.map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  tsel.value = r.tahap.includes(tahap) ? tahap : '';
+
+  trenData = r.items;
+  const psel = document.getElementById('tren-periode');
+  const lama = Number(psel.value) || 0;
+  psel.innerHTML = trenData.map((t) => `<option value="${t.minggu}">Sampai M${t.minggu}</option>`).join('');
+  if (trenData.length) {
+    psel.value = String(trenData.some((t) => t.minggu === lama) ? lama : trenData[trenData.length - 1].minggu);
+  }
+  gambarTren();
+}
+
+// Menggambar tren hanya sampai minggu yang dipilih di filter periode.
+function gambarTren() {
+  const sampai = Number(document.getElementById('tren-periode').value) || Infinity;
+  renderTren(trenData.filter((t) => t.minggu <= sampai));
+}
+
+document.getElementById('tren-sumber').addEventListener('change', () => muatTren().catch(() => {}));
+document.getElementById('tren-tahap').addEventListener('change', () => muatTren().catch(() => {}));
+document.getElementById('tren-periode').addEventListener('change', gambarTren);
+
+function renderTren(items) {
+  const box = document.getElementById('chart-tren');
+  if (!items.length) {
+    box.innerHTML = '<p class="text-sm text-ink3">Belum ada data Lapming Sanimas.</p>';
+    return;
+  }
+  const fmt = (n) => Number(n).toLocaleString('id-ID', { maximumFractionDigits: 2 });
+  const akhir = items[items.length - 1];
+  const W = 640, H = 260, L = 40, R = 16, T = 12, B = 28;
+  const iw = W - L - R, ih = H - T - B;
+  const n = items.length;
+  const x = (i) => (n === 1 ? L + iw / 2 : L + (i * iw) / (n - 1));
+  const y = (v) => T + ih * (1 - Math.min(Math.max(Number(v) || 0, 0), 100) / 100);
+
+  const kisi = [0, 25, 50, 75, 100].map((g) =>
+    `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="#E2E8F0"/>` +
+    `<text x="${L - 6}" y="${y(g) + 4}" text-anchor="end" font-size="11" fill="#64748B">${g}%</text>`
+  ).join('');
+  const label = items.map((t, i) =>
+    `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#64748B">M${t.minggu}</text>`
+  ).join('');
+  const seri = (kunci, warna, nama) => {
+    const pts = items.map((t, i) => `${x(i)},${y(t[kunci])}`).join(' ');
+    const titik = items.map((t, i) =>
+      `<circle cx="${x(i)}" cy="${y(t[kunci])}" r="3.5" fill="${warna}"><title>${nama} M${t.minggu}: ${fmt(t[kunci])}%</title></circle>`
+    ).join('');
+    return `<polyline points="${pts}" fill="none" stroke="${warna}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${titik}`;
+  };
+
+  box.innerHTML = `
+    <div class="flex gap-4 text-xs text-ink2">
+      <span class="flex items-center gap-1"><span class="inline-block h-0.5 w-4 bg-primary"></span>Fisik kumulatif</span>
+      <span class="flex items-center gap-1"><span class="inline-block h-0.5 w-4 bg-warn"></span>Keuangan kumulatif</span>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" class="mt-2 w-full" role="img" aria-label="Grafik garis progres fisik dan keuangan per minggu">
+      ${kisi}${seri('fisik', '#059669', 'Fisik')}${seri('keuangan', '#B45309', 'Keuangan')}${label}
+    </svg>
+    <p class="text-xs text-ink3">Minggu terakhir M${akhir.minggu} (${fmt(akhir.fisik)}% fisik, ${fmt(akhir.keuangan)}% keuangan), ${akhir.pokmas} pokmas.</p>`;
+}
+
+// Kartu Data Lapming: info update terakhir dan log pembaruan.
+function renderUpdate(s) {
+  const terakhir = s.riwayat[0];
+  document.getElementById('update-info').textContent = terakhir
+    ? `Terakhir diperbarui ${terakhir.waktu} oleh ${terakhir.pengguna}`
+    : 'Belum pernah diperbarui.';
+  document.getElementById('update-log').innerHTML = s.riwayat.length
+    ? s.riwayat.map((r) => {
+        const sumber = r.jenis === 'lpk' ? 'LPK' : 'Sanimas';
+        const hasil = r.status === 'berhasil'
+          ? `${angka(r.baris)} baris, ${angka(r.perubahan)} berubah${r.pekerjaan_baru ? `, ${angka(r.pekerjaan_baru)} pekerjaan baru` : ''}`
+          : `Gagal: ${esc(r.catatan || '')}`;
+        return `<li class="flex flex-wrap justify-between gap-2 py-2">
+          <span class="text-ink2">${esc(r.waktu)} • ${sumber} • ${esc(r.pengguna)}</span>
+          <span class="font-semibold ${r.status === 'berhasil' ? 'text-primary' : 'text-danger'}">${hasil}</span>
+        </li>`;
+      }).join('')
+    : '<li class="py-2 text-ink3">Belum ada riwayat.</li>';
+}
+
+function refreshUpdate() {
+  return api('GET', '/api/lapming/update').then((s) => {
+    renderUpdate(s);
+    document.getElementById('update-pengaturan').hidden = !s.bisa_ubah;
+  }).catch(() => {});
+}
+
+document.getElementById('btn-update').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  setBusy(btn, true, 'Memperbarui...');
+  try {
+    const r = await api('POST', '/api/lapming/update');
+    const ringkas = r.hasil.map((h) => (h.status === 'berhasil'
+      ? `${h.jenis === 'lpk' ? 'LPK' : 'Sanimas'} ${angka(h.baris)} baris`
+      : `${h.jenis === 'lpk' ? 'LPK' : 'Sanimas'} gagal`)).join(', ');
+    const semuaBerhasil = r.hasil.every((h) => h.status === 'berhasil');
+    toast(`Data diperbarui: ${ringkas}.`, semuaBerhasil ? 'ok' : 'error');
+    setTimeout(() => location.reload(), 1200);
+  } catch (err) {
+    toast(err.message, 'error');
+    setBusy(btn, false);
+  }
+});
+
 function renderKpi(s) {
   document.getElementById('kpi-pekerjaan').textContent = angka(s.pekerjaan);
   document.getElementById('kpi-aktif').textContent = `${angka(s.aktif)} aktif`;
@@ -334,6 +524,24 @@ document.getElementById('filter-search').addEventListener('input', renderPekerja
     document.getElementById('feed-list').innerHTML = skeletonItems(4);
     const data = await api('GET', '/api/dashboard');
     renderKpi(data.stats);
+    renderGrafik(data);
+    if (user.role === 'admin' || user.role === 'korwil') {
+      document.getElementById('card-update').hidden = false;
+      refreshUpdate();
+    }
+    if (user.role === 'admin' || user.role === 'korwil') {
+      muatTren()
+        .catch(() => { document.getElementById('chart-tren').innerHTML = '<p class="text-sm text-ink3">Data Lapming tidak bisa dimuat.</p>'; });
+    } else {
+      document.getElementById('chart-tren').innerHTML = '<p class="text-sm text-ink3">Hanya tersedia untuk admin dan korwil.</p>';
+    }
+    if (user.role === 'admin' || user.role === 'korwil') {
+      api('GET', '/api/lapming/anomali').then((r) => {
+        if (!r.total) return;
+        document.getElementById('anomali-jumlah').textContent = `${r.total} anomali`;
+        document.getElementById('anomali-banner').hidden = false;
+      }).catch(() => {});
+    }
     semuaPekerjaan = data.pekerjaan;
     renderPekerjaan();
 

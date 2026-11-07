@@ -1,0 +1,232 @@
+---
+import Shell from '../layouts/Shell.astro';
+---
+<Shell title="Progres Lapming per Minggu | KorwilAPP" menu="progres-minggu">
+<div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
+
+  <div class="mb-4 flex flex-col gap-1">
+    <h1 class="text-xl font-bold">Progres Lapming per Minggu</h1>
+    <p class="text-sm text-ink3">Detail progres satu minggu per Pokmas, seperti laporan mingguan. Pilih sumber, minggu (M1, M2, dan seterusnya), dan tahap.</p>
+  </div>
+
+  <section class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <select id="f-sumber" aria-label="Sumber data" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
+      <option value="san">Sanimas</option>
+      <option value="lpk">LPK</option>
+    </select>
+    <select id="f-minggu" aria-label="Minggu" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none"></select>
+    <select id="f-tahap" aria-label="Tahap" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
+      <option value="">Semua tahap</option>
+    </select>
+    <select id="f-korfas" aria-label="Korwil" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
+      <option value="">Semua korwil</option>
+    </select>
+  </section>
+
+  <section id="ringkasan" class="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"></section>
+
+  <p id="info" class="mb-3 text-sm text-ink3"></p>
+  <div class="overflow-x-auto rounded-lg border border-line bg-white">
+    <table class="w-full min-w-[1100px] text-left text-sm">
+      <thead class="bg-muted text-xs font-semibold text-ink2">
+        <tr>
+          <th class="px-3 py-2">No</th>
+          <th class="px-3 py-2">Pokmas</th>
+          <th class="px-3 py-2">Desa</th>
+          <th class="px-3 py-2">Mulai</th>
+          <th class="px-3 py-2">Selesai</th>
+          <th class="px-3 py-2 text-right">Pekerja</th>
+          <th class="px-3 py-2 text-right">HOK kum.</th>
+          <th class="px-3 py-2 text-right">Fisik minggu ini</th>
+          <th class="px-3 py-2 text-right">Fisik kum.</th>
+          <th class="px-3 py-2 text-right">Target</th>
+          <th class="px-3 py-2 text-right">Keu. minggu ini</th>
+          <th class="px-3 py-2 text-right">Keu. kum.</th>
+          <th class="px-3 py-2 text-right">Dana kum. (Rp)</th>
+        </tr>
+      </thead>
+      <tbody id="baris" class="divide-y divide-line"></tbody>
+    </table>
+  </div>
+  <h2 class="mb-2 mt-8 font-semibold">Penggunaan dana kumulatif per Pokmas</h2>
+  <div class="overflow-x-auto rounded-lg border border-line bg-white">
+    <table class="w-full min-w-[800px] text-left text-sm">
+      <thead class="bg-muted text-xs font-semibold text-ink2">
+        <tr>
+          <th class="px-3 py-2">Pokmas</th>
+          <th class="px-3 py-2 text-right">Kum. upah</th>
+          <th class="px-3 py-2 text-right">Kum. material</th>
+          <th class="px-3 py-2 text-right">Kum. BOP</th>
+          <th class="px-3 py-2 text-right">Realisasi kum.</th>
+          <th class="px-3 py-2 text-right">Keuangan kum.</th>
+        </tr>
+      </thead>
+      <tbody id="dana-body" class="divide-y divide-line"></tbody>
+    </table>
+  </div>
+
+  <h2 class="mb-2 mt-8 font-semibold">RPDB per Pokmas</h2>
+  <div class="overflow-x-auto rounded-lg border border-line bg-white">
+    <table class="w-full min-w-[700px] text-left text-sm">
+      <thead class="bg-muted text-xs font-semibold text-ink2">
+        <tr>
+          <th class="px-3 py-2">Pokmas</th>
+          <th class="px-3 py-2 text-right">Total RPDB</th>
+          <th class="px-3 py-2 text-right">Realisasi kum.</th>
+          <th class="px-3 py-2 text-right">Saldo</th>
+          <th class="px-3 py-2 text-right">Serapan</th>
+        </tr>
+      </thead>
+      <tbody id="rpdb-body" class="divide-y divide-line"></tbody>
+    </table>
+  </div>
+
+  <h2 class="mb-2 mt-8 font-semibold">Anomali minggu ini</h2>
+  <p id="anomali-info" class="mb-2 text-sm text-ink3"></p>
+  <div class="overflow-x-auto rounded-lg border border-line bg-white">
+    <table class="w-full min-w-[500px] text-left text-sm">
+      <thead class="bg-muted text-xs font-semibold text-ink2">
+        <tr>
+          <th class="px-3 py-2">No</th>
+          <th class="px-3 py-2">Pokmas</th>
+          <th class="px-3 py-2">Kategori</th>
+        </tr>
+      </thead>
+      <tbody id="anomali-body" class="divide-y divide-line"></tbody>
+    </table>
+  </div>
+<script is:inline>
+const errorBox = document.getElementById('error-message');
+
+const persen = (v) => (v == null ? '-' : `${Number(v).toLocaleString('id-ID', { maximumFractionDigits: 2 })}%`);
+const rupiah = (v) => `Rp ${Number(v || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 })}`;
+const tanggal = (iso) => (iso ? iso.split('-').reverse().join('/') : '-');
+
+function isiPilihan(el, pilihan, labelKosong, dipilih) {
+  el.innerHTML = (labelKosong ? `<option value="">${esc(labelKosong)}</option>` : '') +
+    pilihan.map((v) => `<option value="${esc(String(v.value))}">${esc(v.label)}</option>`).join('');
+  if (dipilih != null && pilihan.some((v) => String(v.value) === String(dipilih))) el.value = String(dipilih);
+}
+
+function renderRingkasan(r) {
+  const s = r.ringkasan;
+  const kartu = [
+    ['Fisik kumulatif', persen(s.fisik_kumulatif), `${s.pokmas} pokmas`],
+    ['Keuangan kumulatif', persen(s.keuangan_kumulatif), `Pagu ${rupiah(s.pagu_total)}`],
+    ['Target kurva S', persen(s.target), s.target == null ? 'Belum ada target' : `Selisih fisik ${Number(s.fisik_kumulatif - s.target).toLocaleString('id-ID', { maximumFractionDigits: 2 })} poin`],
+    ['Realisasi kumulatif', rupiah(s.realisasi), `${s.pekerja} pekerja minggu ini`],
+  ];
+  document.getElementById('ringkasan').innerHTML = kartu.map(([lab, besar, sub]) => `
+    <div class="rounded-lg border border-line bg-white p-4">
+      <p class="text-xs font-semibold uppercase tracking-wider text-ink3">${esc(lab)}</p>
+      <p class="mt-1 text-2xl font-bold">${esc(besar)}</p>
+      <p class="mt-1 text-xs text-ink3">${esc(sub)}</p>
+    </div>`).join('');
+}
+
+// Tiga tabel tambahan: penggunaan dana kumulatif, RPDB, dan anomali minggu itu.
+function renderDetail(r) {
+  const kosong = (kolom, teks) => `<tr><td colspan="${kolom}" class="px-3 py-6 text-center text-ink3">${teks}</td></tr>`;
+
+  document.getElementById('dana-body').innerHTML = r.baris.length
+    ? r.baris.map((b) => `
+      <tr class="hover:bg-muted">
+        <td class="px-3 py-2 font-semibold">${esc(b.pokmas)}</td>
+        <td class="px-3 py-2 text-right">${rupiah(b.kum_upah)}</td>
+        <td class="px-3 py-2 text-right">${rupiah(b.kum_material)}</td>
+        <td class="px-3 py-2 text-right">${rupiah(b.kum_bop)}</td>
+        <td class="px-3 py-2 text-right">${rupiah(b.dana_kumulatif)}</td>
+        <td class="px-3 py-2 text-right">${persen(b.keuangan_kumulatif)}</td>
+      </tr>`).join('')
+    : kosong(6, 'Belum ada data.');
+
+  document.getElementById('rpdb-body').innerHTML = r.baris.length
+    ? r.baris.map((b) => {
+        const serapan = b.rpdb ? persen((b.dana_kumulatif / b.rpdb) * 100) : '-';
+        return `
+      <tr class="hover:bg-muted">
+        <td class="px-3 py-2 font-semibold">${esc(b.pokmas)}</td>
+        <td class="px-3 py-2 text-right">${b.rpdb == null ? '<span class="text-ink3">belum diisi</span>' : rupiah(b.rpdb)}</td>
+        <td class="px-3 py-2 text-right">${rupiah(b.dana_kumulatif)}</td>
+        <td class="px-3 py-2 text-right ${b.saldo_rpdb != null && b.saldo_rpdb < 0 ? 'text-danger' : ''}">${b.saldo_rpdb == null ? '-' : rupiah(b.saldo_rpdb)}</td>
+        <td class="px-3 py-2 text-right">${serapan}</td>
+      </tr>`;
+      }).join('')
+    : kosong(5, 'Belum ada data.');
+
+  const anomali = r.anomali || [];
+  document.getElementById('anomali-info').textContent = anomali.length
+    ? `${anomali.length} temuan pada minggu ini.`
+    : 'Tidak ada anomali pada minggu ini.';
+  document.getElementById('anomali-body').innerHTML = anomali.length
+    ? anomali.map((a) => `
+      <tr class="hover:bg-muted">
+        <td class="px-3 py-2 text-ink3">${esc(a.no)}</td>
+        <td class="px-3 py-2 font-semibold">${esc(a.pokmas)}</td>
+        <td class="px-3 py-2 font-semibold text-warn">${esc(a.kategori)}</td>
+      </tr>`).join('')
+    : kosong(3, 'Tidak ada anomali.');
+}
+
+function renderBaris(r) {
+  const box = document.getElementById('baris');
+  box.innerHTML = r.baris.length
+    ? r.baris.map((b) => `
+      <tr class="hover:bg-muted">
+        <td class="px-3 py-2 text-ink3">${esc(b.no)}</td>
+        <td class="px-3 py-2 font-semibold">${esc(b.pokmas)}</td>
+        <td class="px-3 py-2 text-ink2">${esc(b.desa)}</td>
+        <td class="whitespace-nowrap px-3 py-2 text-ink2">${tanggal(b.mulai)}</td>
+        <td class="whitespace-nowrap px-3 py-2 text-ink2">${tanggal(b.selesai)}</td>
+        <td class="px-3 py-2 text-right">${b.pekerja}</td>
+        <td class="px-3 py-2 text-right">${b.hok}</td>
+        <td class="px-3 py-2 text-right">${persen(b.fisik_minggu_ini)}</td>
+        <td class="px-3 py-2 text-right font-semibold">${persen(b.fisik_kumulatif)}</td>
+        <td class="px-3 py-2 text-right">${persen(b.target)}</td>
+        <td class="px-3 py-2 text-right">${persen(b.keuangan_minggu_ini)}</td>
+        <td class="px-3 py-2 text-right">${persen(b.keuangan_kumulatif)}</td>
+        <td class="px-3 py-2 text-right">${rupiah(b.dana_kumulatif)}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="13" class="px-3 py-6 text-center text-ink3">Belum ada data untuk pilihan ini.</td></tr>';
+  document.getElementById('info').textContent = `Minggu M${r.minggu}: ${r.baris.length} pokmas ditampilkan.`;
+}
+
+async function muat() {
+  const sumber = document.getElementById('f-sumber').value;
+  const minggu = document.getElementById('f-minggu').value;
+  const tahap = document.getElementById('f-tahap').value;
+  const korfas = document.getElementById('f-korfas').value;
+  const q = new URLSearchParams({ sumber });
+  if (minggu) q.set('minggu', minggu);
+  if (tahap) q.set('tahap', tahap);
+  if (korfas) q.set('korfas', korfas);
+  const r = await api('GET', `/api/lapming/minggu?${q}`);
+
+  if (!r.minggu) {
+    isiPilihan(document.getElementById('f-minggu'), [], '', '');
+    document.getElementById('ringkasan').innerHTML = '';
+    document.getElementById('baris').innerHTML = '<tr><td colspan="13" class="px-3 py-6 text-center text-ink3">Belum ada data Lapming untuk sumber ini.</td></tr>';
+    document.getElementById('info').textContent = '';
+    return;
+  }
+  isiPilihan(document.getElementById('f-minggu'), r.minggu_tersedia.map((m) => ({ value: m, label: `M${m}` })), '', r.minggu);
+  isiPilihan(document.getElementById('f-tahap'), r.tahap.map((t) => ({ value: t, label: t })), 'Semua tahap', tahap);
+  isiPilihan(document.getElementById('f-korfas'), r.korfas.map((k) => ({ value: k, label: k })), 'Semua korwil', korfas);
+  renderRingkasan(r);
+  renderBaris(r);
+  renderDetail(r);
+}
+
+const jalan = () => muat().catch((err) => showError(errorBox, err.message));
+['f-sumber', 'f-minggu', 'f-tahap', 'f-korfas'].forEach((id) => document.getElementById(id).addEventListener('change', jalan));
+
+(async () => {
+  try {
+    await requireAuth();
+    await jalan();
+  } catch (err) {
+    showError(errorBox, err.message);
+  }
+})();
+</script>
+</Shell>

@@ -46,6 +46,10 @@
       if (lapming) lapming.hidden = !(admin || user.role === 'korwil');
       const anomali = document.getElementById('menu-anomali');
       if (anomali) anomali.hidden = !(admin || user.role === 'korwil');
+      const pengaturan = document.getElementById('menu-pengaturan');
+      if (pengaturan) pengaturan.hidden = !admin;
+      const progres = document.getElementById('menu-progres-minggu');
+      if (progres) progres.hidden = !(admin || user.role === 'korwil');
     } catch (_) {}
   }
 
