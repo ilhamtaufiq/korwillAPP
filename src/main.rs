@@ -12,8 +12,8 @@ mod projects;
 mod riwayat;
 
 use axum::{
-    extract::DefaultBodyLimit,
-    http::{header, HeaderValue},
+    extract::{DefaultBodyLimit, State},
+    http::{header, HeaderValue, StatusCode},
     middleware,
     response::Response,
     routing::{delete, get, post, put},
@@ -36,8 +36,39 @@ async fn no_cache_default(mut res: Response) -> Response {
     res
 }
 
+/// Status untuk healthcheck Docker dan Coolify: 200 jika database bisa dihubungi.
+async fn health(State(st): State<AppState>) -> (StatusCode, &'static str) {
+    match sqlx::query("SELECT 1").execute(&st.db).await {
+        Ok(_) => (StatusCode::OK, "ok"),
+        Err(_) => (StatusCode::SERVICE_UNAVAILABLE, "database tidak terjangkau"),
+    }
+}
+
+/// Dipakai perintah `healthcheck` (HEALTHCHECK Docker): minta /health ke server lokal dan cek status 200.
+/// Tidak butuh curl atau wget di dalam image.
+fn cek_kesehatan() -> bool {
+    use std::io::{Read, Write};
+    let bind = std::env::var("BIND").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
+    let port = bind.rsplit(':').next().unwrap_or("8080");
+    let Ok(alamat) = format!("127.0.0.1:{port}").parse::<std::net::SocketAddr>() else { return false };
+    let Ok(mut aliran) = std::net::TcpStream::connect_timeout(&alamat, std::time::Duration::from_secs(3)) else {
+        return false;
+    };
+    let _ = aliran.set_read_timeout(Some(std::time::Duration::from_secs(8)));
+    if aliran
+        .write_all(b"GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+        .is_err()
+    {
+        return false;
+    }
+    let mut balasan = Vec::new();
+    let _ = aliran.read_to_end(&mut balasan);
+    String::from_utf8_lossy(&balasan).starts_with("HTTP/1.1 200")
+}
+
 fn router(state: AppState) -> Router {
     Router::new()
+        .route("/health", get(health))
         .route("/api/login", post(auth::login))
         .route("/api/logout", post(auth::logout))
         .route("/api/me", get(auth::me))
@@ -88,6 +119,7 @@ fn router(state: AppState) -> Router {
         .route("/api/lapming/laporan/:format", get(lapming::api::laporan))
         .route("/api/lapming/laporan-file/:format", post(lapming::api::laporan_file))
         .route("/api/lapming/log", get(lapming::api::log_daftar))
+        .route("/api/lapming/anomali", get(lapming::api::anomali_daftar))
         .route("/api/lapming/pokmas", get(lapming::api::pokmas_daftar))
         .route("/api/lapming/rpdb", put(lapming::api::rpdb_simpan))
         .route(
@@ -114,6 +146,10 @@ async fn main() -> anyhow::Result<()> {
     let argumen: Vec<String> = std::env::args().collect();
     if argumen.get(1).map(String::as_str) == Some("lapming-cli") {
         return lapming::cli::jalankan(&argumen[2..]);
+    }
+    // Healthcheck Docker/Coolify: tidak membuka database di sini, server lokal yang diperiksa.
+    if argumen.get(1).map(String::as_str) == Some("healthcheck") {
+        std::process::exit(if cek_kesehatan() { 0 } else { 1 });
     }
 
     let database_url = std::env::var("DATABASE_URL")

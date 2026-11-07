@@ -123,7 +123,7 @@ function fill(project) {
 document.getElementById('delete-btn').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
   const judul = document.getElementById('judul').value;
-  if (!confirm(`Hapus pekerjaan "${judul}"? Data bisa dipulihkan dari Log Dokumentasi.`)) return;
+  if (!await confirmDialog({ title: 'Hapus pekerjaan?', message: `"${judul}" akan dihapus. Data bisa dipulihkan dari Log Dokumentasi.`, confirmText: 'Hapus', danger: true })) return;
   hideError(errorBox);
   btn.disabled = true;
   try {
@@ -139,7 +139,7 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   hideError(errorBox);
   successBox.classList.add('hidden');
-  submitBtn.disabled = true;
+  setBusy(submitBtn, true);
   try {
     const body = {};
     for (const id of TEXT_FIELDS) {
@@ -154,13 +154,12 @@ form.addEventListener('submit', async (e) => {
     body.pagu_dana = pagu === '' ? null : Number(pagu);
 
     await api('PUT', `/api/projects/${projectId}`, body);
-    successBox.textContent = 'Perubahan disimpan.';
-    successBox.classList.remove('hidden');
+    toast('Perubahan disimpan.');
     setTimeout(() => { location.href = `/detail-proyek.html?id=${projectId}`; }, 600);
   } catch (err) {
     showError(errorBox, err.message);
   } finally {
-    submitBtn.disabled = false;
+    setBusy(submitBtn, false);
   }
 });
 </script>

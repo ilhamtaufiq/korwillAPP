@@ -472,8 +472,7 @@ document.querySelectorAll('.filter-chip').forEach((btn) => {
 document.getElementById('beneficiary-search').addEventListener('input', renderRows);
 
 function showSuccess(message) {
-  successBox.textContent = message;
-  successBox.classList.remove('hidden');
+  toast(message);
 }
 
 function hideAll() {
@@ -604,7 +603,7 @@ document.getElementById('beneficiary-rows').addEventListener('click', async (e) 
   const cell = e.target.closest('.photo-cell');
   const remove = e.target.closest('.remove-btn');
   if (remove) {
-    if (!confirm(`Hapus ${remove.dataset.nama} beserta fotonya? Data bisa dipulihkan dari Log Dokumentasi.`)) return;
+    if (!await confirmDialog({ title: 'Hapus pemanfaat?', message: `${remove.dataset.nama} dan fotonya akan dihapus. Data bisa dipulihkan dari Log Dokumentasi.`, confirmText: 'Hapus', danger: true })) return;
     hideAll();
     try {
       await api('DELETE', `/api/beneficiaries/${remove.dataset.remove}`);
@@ -647,7 +646,7 @@ document.addEventListener('click', async (e) => {
   }
   if (!e.target.closest('#preview-delete')) return;
   if (!previewCell) return;
-  if (!confirm('Hapus foto di sel ini? Foto bisa dipulihkan dari Log Dokumentasi.')) return;
+  if (!await confirmDialog({ title: 'Hapus foto?', message: 'Foto di sel ini akan dihapus. Foto bisa dipulihkan dari Log Dokumentasi.', confirmText: 'Hapus', danger: true })) return;
   const [bid, key, stage] = previewCell.split('|');
   hideAll();
   try {

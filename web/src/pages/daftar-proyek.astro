@@ -31,12 +31,12 @@ import Shell from '../layouts/Shell.astro';
   </section>
 
   <section class="mb-4 grid gap-3 sm:grid-cols-3">
-    <input id="filter-search" type="search" placeholder="Cari pekerjaan, pokmas, desa, atau kode..."
+    <input id="filter-search" type="search" aria-label="Cari pekerjaan" placeholder="Cari pekerjaan, pokmas, desa, atau kode..."
       class="h-11 rounded-lg border border-line bg-white px-4 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none sm:col-span-1">
-    <select id="filter-kabupaten" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
+    <select id="filter-kabupaten" aria-label="Filter kabupaten" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
       <option value="">Semua kabupaten</option>
     </select>
-    <select id="filter-kegiatan" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
+    <select id="filter-kegiatan" aria-label="Filter kegiatan" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none">
       <option value="">Semua kegiatan</option>
     </select>
   </section>
@@ -137,7 +137,6 @@ document.getElementById('filter-kegiatan').addEventListener('change', renderList
 (async () => {
   try {
     const user = await requireAuth();
-    document.getElementById('user-name').textContent = `${user.username} • ${user.role === 'admin' ? 'Admin' : 'FM'}`;
     if (user.role === 'admin') {
       document.getElementById('new-project').hidden = false;
       document.getElementById('import-section').hidden = false;

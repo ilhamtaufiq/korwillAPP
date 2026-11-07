@@ -19,6 +19,9 @@ RUN mkdir -p uploads
 
 ENV BIND=0.0.0.0:8080
 EXPOSE 8080
+# Memanggil /health (cek koneksi database). Dipakai Docker dan Coolify untuk status kontainer.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD ["sanimas-dokumentasi", "healthcheck"]
 # Foto yang diunggah disimpan di /app/uploads. Folder ini dijadikan volume agar tidak hilang saat deploy ulang.
 VOLUME ["/app/uploads"]
 

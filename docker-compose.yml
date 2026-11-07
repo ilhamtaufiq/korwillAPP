@@ -18,6 +18,13 @@ services:
       - uploads:/app/uploads
     expose:
       - "8080"
+    # Memanggil /health di dalam kontainer; gagal jika database tidak terjangkau.
+    healthcheck:
+      test: ["CMD", "sanimas-dokumentasi", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   db:
     image: mysql:8.0

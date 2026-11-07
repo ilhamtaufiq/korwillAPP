@@ -49,8 +49,7 @@ document.getElementById('password-form').addEventListener('submit', async (e) =>
       old_password: document.getElementById('old_password').value,
       new_password: newPassword,
     });
-    successBox.textContent = 'Kata sandi berhasil diganti.';
-    successBox.classList.remove('hidden');
+    toast('Kata sandi berhasil diganti.');
     setTimeout(() => { location.href = '/daftar-proyek.html'; }, 800);
   } catch (err) {
     showError(errorBox, err.message);

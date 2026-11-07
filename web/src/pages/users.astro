@@ -136,9 +136,7 @@ async function loadUsers() {
 }
 
 function setSuccess(message) {
-  successBox.textContent = message;
-  successBox.classList.remove('hidden');
-  setTimeout(() => successBox.classList.add('hidden'), 4000);
+  toast(message);
 }
 
 // Form dipakai untuk tiga mode: tambah user, ubah nama dan peran, dan reset kata sandi.

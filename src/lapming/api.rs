@@ -752,3 +752,78 @@ pub async fn proyek(
     let items: Vec<Value> = items.into_iter().map(|(_, v)| v).collect();
     Ok(Json(json!({ "pokmas": pokmas, "ditemukan": !items.is_empty(), "minggu": items, "anomali": anomali })))
 }
+
+#[derive(Deserialize)]
+pub struct AnomaliQuery {
+    korfas: Option<String>,
+}
+
+const ANOMALI_BATAS: usize = 5000;
+
+/// Daftar anomali data dari seluruh minggu, untuk satu korfas (atau semua korfas bila `korfas` kosong).
+/// Isinya sama dengan anomali di detail proyek: temuan cek kualitas dan Fisik melebihi keuangan.
+pub async fn anomali_daftar(
+    State(st): State<AppState>,
+    session: Session,
+    Query(q): Query<AnomaliQuery>,
+) -> Result<Json<Value>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    butuh_lapming(&user)?;
+    let ds = muat_dataset(&st.db).await?;
+    let pilih: Vec<String> = match q.korfas.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        Some(k) => vec![k.to_string()],
+        None => calc::daftar_korfas(&ds),
+    };
+    let mut minggu_ada: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
+    for (_, b) in ds.books() {
+        minggu_ada.extend(b.sheets.keys().copied());
+    }
+
+    let mut hasil: Vec<(String, u32, Value)> = Vec::new();
+    for k in &pilih {
+        for &w in &minggu_ada {
+            let rows = calc::ambil(&ds, w, Some(k.as_str()), None);
+            if rows.is_empty() {
+                continue;
+            }
+            let sumber = |lpk: bool| if lpk { "LPK" } else { "Sanimas" };
+            for (i, kat, ket) in calc::cek_kualitas(&ds, k, w, &rows, None) {
+                let r = &rows[i];
+                hasil.push((
+                    r.korfas.clone(),
+                    w,
+                    json!({
+                        "korfas": r.korfas,
+                        "minggu": w,
+                        "sheet": r.sheet,
+                        "sumber": sumber(r.lpk),
+                        "pokmas": r.nama,
+                        "kategori": kat,
+                        "keterangan": ket,
+                    }),
+                ));
+            }
+            for r in &rows {
+                if r.ag > r.ad + 0.0005 {
+                    hasil.push((
+                        r.korfas.clone(),
+                        w,
+                        json!({
+                            "korfas": r.korfas,
+                            "minggu": w,
+                            "sheet": r.sheet,
+                            "sumber": sumber(r.lpk),
+                            "pokmas": r.nama,
+                            "kategori": "Fisik melebihi keuangan",
+                            "keterangan": format!("Fisik {:.2}%, keuangan {:.2}%", r.ag * 100.0, r.ad * 100.0).replace('.', ","),
+                        }),
+                    ));
+                }
+            }
+        }
+    }
+    hasil.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    let total = hasil.len();
+    let items: Vec<Value> = hasil.into_iter().take(ANOMALI_BATAS).map(|(_, _, v)| v).collect();
+    Ok(Json(json!({ "total": total, "items": items, "batas": ANOMALI_BATAS })))
+}

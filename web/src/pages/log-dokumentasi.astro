@@ -92,14 +92,13 @@ async function muat() {
 logBody.addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-restore]');
   if (!btn) return;
-  if (!confirm('Pulihkan data ini?')) return;
+  if (!await confirmDialog({ title: 'Pulihkan data ini?', message: 'Data yang dihapus akan kembali aktif.', confirmText: 'Pulihkan' })) return;
   hideError(errorBox);
   successBox.classList.add('hidden');
   btn.disabled = true;
   try {
     await api('POST', `/api/restore/${btn.dataset.restore}`);
-    successBox.textContent = 'Data berhasil dipulihkan.';
-    successBox.classList.remove('hidden');
+    toast('Data berhasil dipulihkan.');
     await muat();
   } catch (err) {
     showError(errorBox, err.message);

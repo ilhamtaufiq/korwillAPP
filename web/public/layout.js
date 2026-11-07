@@ -39,6 +39,8 @@
       });
       const lapming = document.getElementById('menu-lapming');
       if (lapming) lapming.hidden = !(admin || user.role === 'korwil');
+      const anomali = document.getElementById('menu-anomali');
+      if (anomali) anomali.hidden = !(admin || user.role === 'korwil');
     } catch (_) {}
   }
 
