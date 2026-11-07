@@ -214,11 +214,12 @@ async fn proses_impor(st: &AppState, lpk: bool, body: Bytes) -> Result<Json<Valu
     let lama_book = if lpk { lama.lpk } else { lama.san };
     let punya_lama = lama_book.as_ref().map_or(false, |b| b.sheets.values().any(|r| !r.is_empty()));
     let baru = if lpk { Dataset { lpk: Some(book.clone()), ..Default::default() } } else { Dataset { san: Some(book.clone()), ..Default::default() } };
+    // Impor pertama: semua baris dicatat sebagai "ditambahkan" (pembanding kosong).
     let entri: Vec<LogEntri> = if punya_lama {
         let lama_ds = if lpk { Dataset { lpk: lama_book, ..Default::default() } } else { Dataset { san: lama_book, ..Default::default() } };
         log::bandingkan(&log::snapshot(&lama_ds), &log::snapshot(&baru), "")
     } else {
-        Vec::new()
+        log::bandingkan(&Default::default(), &log::snapshot(&baru), "")
     };
 
     let jenis = jenis_kode(lpk);
@@ -661,6 +662,8 @@ pub async fn proyek(
         .fetch_all(&st.db)
         .await?;
     let mut items: Vec<(u32, Value)> = Vec::new();
+    // (minggu, lpk, no, korfas, sheet, nama, ag, ad) untuk pengecekan anomali di bawah.
+    let mut cocok: Vec<(u32, bool, String, String, String, String, f64, f64)> = Vec::new();
     for (_, data) in baris {
         let x: Row = serde_json::from_str(&data).map_err(internal)?;
         if efektif(&x.nama) != cari {
@@ -672,6 +675,7 @@ pub async fn proyek(
             _ => String::new(),
         };
         let tgl = |d: Option<NaiveDate>| d.map(|d| d.format("%Y-%m-%d").to_string());
+        cocok.push((minggu, x.lpk, x.no.clone(), x.korfas.clone(), x.sheet.clone(), x.nama.clone(), x.ag, x.ad));
         items.push((
             minggu,
             json!({
@@ -697,7 +701,54 @@ pub async fn proyek(
             }),
         ));
     }
+    // Anomali: "Fisik melebihi keuangan" dari baris itu sendiri, dan temuan cek_kualitas
+    // (Fisik turun, tidak menjumlah, di atas 100%, dan lain-lain) yang mengenai Pokmas ini.
+    let mut anomali: Vec<(u32, Value)> = Vec::new();
+    if !cocok.is_empty() {
+        let ds = muat_dataset(&st.db).await?;
+        let mut sudah: HashMap<(String, u32), (Vec<Row>, Vec<(usize, String, String)>)> = HashMap::new();
+        for (minggu, lpk, no, korfas, sheet, nama, ag, ad) in cocok.iter().cloned() {
+            let sumber = if lpk { "LPK" } else { "Sanimas" };
+            if ag > ad + 0.0005 {
+                anomali.push((
+                    minggu,
+                    json!({
+                        "minggu": minggu,
+                        "sheet": sheet,
+                        "sumber": sumber,
+                        "pokmas": nama,
+                        "kategori": "Fisik melebihi keuangan",
+                        "keterangan": format!("Fisik {:.2}%, keuangan {:.2}%", ag * 100.0, ad * 100.0).replace('.', ","),
+                    }),
+                ));
+            }
+            let (rows_m, masalah) = sudah.entry((korfas.clone(), minggu)).or_insert_with(|| {
+                let rows_m = calc::ambil(&ds, minggu, Some(korfas.as_str()), None);
+                let masalah = calc::cek_kualitas(&ds, &korfas, minggu, &rows_m, None);
+                (rows_m, masalah)
+            });
+            for (i, kat, ket) in masalah.iter() {
+                let r = &rows_m[*i];
+                if r.lpk == lpk && r.no == no {
+                    anomali.push((
+                        minggu,
+                        json!({
+                            "minggu": minggu,
+                            "sheet": sheet,
+                            "sumber": sumber,
+                            "pokmas": nama,
+                            "kategori": kat,
+                            "keterangan": ket,
+                        }),
+                    ));
+                }
+            }
+        }
+        anomali.sort_by(|a, b| a.0.cmp(&b.0));
+    }
+    let anomali: Vec<Value> = anomali.into_iter().map(|(_, v)| v).collect();
+
     items.sort_by(|a, b| a.0.cmp(&b.0));
     let items: Vec<Value> = items.into_iter().map(|(_, v)| v).collect();
-    Ok(Json(json!({ "pokmas": pokmas, "ditemukan": !items.is_empty(), "minggu": items })))
+    Ok(Json(json!({ "pokmas": pokmas, "ditemukan": !items.is_empty(), "minggu": items, "anomali": anomali })))
 }
