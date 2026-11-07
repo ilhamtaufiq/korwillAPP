@@ -25,6 +25,11 @@
       }
     });
 
+    // Di HP, sidebar menutup sendiri setelah menu dipilih atau area konten diketuk.
+    const tutupSidebar = () => { if (!desktop.matches) document.body.classList.remove('sb-open'); };
+    document.querySelectorAll('#sidebar nav a').forEach((a) => a.addEventListener('click', tutupSidebar));
+    document.getElementById('page')?.addEventListener('click', tutupSidebar);
+
     try {
       const res = await fetch('/api/me', { credentials: 'same-origin' });
       if (!res.ok) return;

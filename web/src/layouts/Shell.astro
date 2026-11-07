@@ -19,7 +19,7 @@ const utama = [
   { key: 'anomali', href: '/anomali-data.html', label: 'Cek Anomali Data', icon: 'rule', id: 'menu-anomali', hidden: true },
 ];
 const akun = [{ key: 'sandi', href: '/ganti-sandi.html', label: 'Ganti Kata Sandi', icon: 'key', id: '', hidden: false }];
-const base = 'nav-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold';
+const base = 'nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold';
 const kelas = (k: string) => (k === menu ? `${base} border-l-2 border-primary bg-primary-soft text-primary` : `${base} text-ink2 hover:bg-muted`);
 ---
 <Base title={title} shell={true}>

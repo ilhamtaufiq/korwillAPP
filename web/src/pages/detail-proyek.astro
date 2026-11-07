@@ -21,7 +21,7 @@ import Shell from '../layouts/Shell.astro';
     </div>
   </section>
 
-  <section id="export-panel" class="mb-6 hidden rounded-lg border border-line bg-white p-4">
+  <section id="export-panel" data-tab="ekspor" class="mb-6 hiddenrounded-lg border border-line bg-white p-4">
     <div class="grid gap-6 lg:grid-cols-[280px_1fr]">
       <div class="flex flex-col gap-4">
         <h2 class="font-semibold">Opsi Ekspor PDF</h2>
@@ -49,7 +49,7 @@ import Shell from '../layouts/Shell.astro';
     </div>
   </section>
 
-  <section id="lapming-panel" class="mb-6 hidden rounded-lg border border-line bg-white p-4">
+  <section id="lapming-panel" data-tab="lapming" class="mb-6 hiddenrounded-lg border border-line bg-white p-4">
     <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
       <div>
         <h2 class="font-semibold">Progres Lapming</h2>
@@ -100,8 +100,16 @@ import Shell from '../layouts/Shell.astro';
     </div>
   </section>
 
+  <nav id="detail-tabs" role="tablist" class="mb-4 flex gap-1 overflow-x-auto border-b border-line">
+    <button type="button" role="tab" data-tab-btn="progres" class="h-11 shrink-0 border-b-2 px-4 text-sm font-semibold">Progres</button>
+    <button type="button" role="tab" data-tab-btn="lapming" class="h-11 shrink-0 border-b-2 px-4 text-sm font-semibold">Lapming</button>
+    <button type="button" role="tab" data-tab-btn="ekspor" class="h-11 shrink-0 border-b-2 px-4 text-sm font-semibold">Ekspor</button>
+    <button type="button" role="tab" data-tab-btn="kelola" class="h-11 shrink-0 border-b-2 px-4 text-sm font-semibold">Kelola</button>
+  </nav>
+  <style is:global>.tab-off { display: none !important; }</style>
+
   <div class="grid gap-6 lg:grid-cols-[1fr_280px]">
-    <section class="overflow-hidden rounded-lg border border-line bg-white">
+    <section data-tab="progres" class="overflow-hidden rounded-lg border border-line bg-white">
       <div class="flex items-center justify-between border-b border-line px-4 py-3">
         <h2 class="font-semibold">Progres Fisik per Pemanfaat</h2>
         <span id="count-label" class="text-sm text-ink3"></span>
@@ -137,7 +145,7 @@ import Shell from '../layouts/Shell.astro';
       </div>
     </section>
 
-    <aside class="flex flex-col gap-4">
+    <aside data-tab="kelola" class="flex flex-col gap-4">
       <section id="members-panel" hidden class="flex flex-col gap-3 rounded-lg border border-line bg-white p-4">
         <h2 class="font-semibold">Akun FM</h2>
         <p class="text-xs text-ink3">Akun FM yang namanya sama dengan kolom FM Teknik atau FM Pemberdayaan dihubungkan otomatis. Tambahkan manual kalau namanya berbeda.</p>
@@ -493,6 +501,46 @@ function currentPosition() {
 }
 
 // Unggah dengan progres: XHR memberi tahu persentase yang sudah terkirim.
+// Kecilkan foto besar di browser sebelum dikirim, supaya hemat kuota dan cepat di sinyal lemah.
+// Orientasi EXIF diterapkan saat digambar ke kanvas. Gagal atau format tidak dikenali: pakai file asli.
+async function kecilkanFoto(file) {
+  if (file.size < 2 * 1024 * 1024 || !file.type.startsWith('image/')) return file;
+  try {
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = url;
+    });
+    const skala = Math.min(1, 2048 / Math.max(img.naturalWidth, img.naturalHeight));
+    const kanvas = document.createElement('canvas');
+    kanvas.width = Math.round(img.naturalWidth * skala);
+    kanvas.height = Math.round(img.naturalHeight * skala);
+    kanvas.getContext('2d').drawImage(img, 0, 0, kanvas.width, kanvas.height);
+    URL.revokeObjectURL(url);
+    const blob = await new Promise((res) => kanvas.toBlob(res, 'image/jpeg', 0.85));
+    return blob && blob.size < file.size ? new File([blob], 'foto.jpg', { type: 'image/jpeg' }) : file;
+  } catch (_) {
+    return file;
+  }
+}
+
+// Coba ulang otomatis bila koneksi terputus (maks. 3 kali), karena sinyal di lapangan sering hilang.
+// Galat dari server (misalnya foto tidak valid) tidak diulang.
+async function uploadPhotoDenganUlang(beneficiaryId, key, stage, file, onProgress) {
+  const kecil = await kecilkanFoto(file);
+  for (let coba = 1; ; coba++) {
+    try {
+      return await uploadPhoto(beneficiaryId, key, stage, kecil, onProgress);
+    } catch (err) {
+      if (coba >= 3 || !err.jaringan) throw err;
+      if (onProgress) onProgress(0);
+      await new Promise((r) => setTimeout(r, 1500 * coba));
+    }
+  }
+}
+
 async function uploadPhoto(beneficiaryId, key, stage, file, onProgress) {
   if (file.size > MAX_PHOTO_BYTES) {
     throw new Error('Ukuran foto maksimal 20 MB.');
@@ -512,7 +560,11 @@ async function uploadPhoto(beneficiaryId, key, stage, file, onProgress) {
       try { msg = JSON.parse(xhr.responseText).error || msg; } catch (_) {}
       reject(new Error(msg));
     };
-    xhr.onerror = () => reject(new Error('Koneksi terputus, coba lagi.'));
+    xhr.onerror = () => {
+      const err = new Error('Koneksi terputus, coba lagi.');
+      err.jaringan = true;
+      reject(err);
+    };
     xhr.send(file);
   });
 }
@@ -584,7 +636,7 @@ sheetSave.addEventListener('click', async () => {
   sheetSave.disabled = true;
   setSheetError('');
   try {
-    await uploadPhoto(bid, key, stage, sheetFile, (pct) => {
+    await uploadPhotoDenganUlang(bid, key, stage, sheetFile, (pct) => {
       bar.style.width = `${pct}%`;
       barText.textContent = `${pct}%`;
     });
@@ -756,6 +808,32 @@ document.getElementById('export-go').addEventListener('click', () => {
   } catch (err) {
     showError(errorBox, err.message);
   }
+})();
+</script>
+<script is:inline>
+// Tab halaman detail: Progres, Lapming, Ekspor, Kelola. Tab aktif disimpan di hash URL (mis. #lapming).
+(function () {
+  const nav = document.getElementById('detail-tabs');
+  const daftar = ['progres', 'lapming', 'ekspor', 'kelola'];
+  function pilih(nama, simpan) {
+    if (!daftar.includes(nama)) nama = 'progres';
+    document.querySelectorAll('[data-tab]').forEach((el) => el.classList.toggle('tab-off', el.dataset.tab !== nama));
+    nav.querySelectorAll('[data-tab-btn]').forEach((b) => {
+      const aktif = b.dataset.tabBtn === nama;
+      b.setAttribute('aria-selected', String(aktif));
+      b.classList.toggle('border-primary', aktif);
+      b.classList.toggle('text-primary', aktif);
+      b.classList.toggle('border-transparent', !aktif);
+      b.classList.toggle('text-ink3', !aktif);
+    });
+    if (simpan) history.replaceState(null, '', '#' + nama);
+  }
+  nav.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tab-btn]');
+    if (b) pilih(b.dataset.tabBtn, true);
+  });
+  window.addEventListener('hashchange', () => pilih(location.hash.slice(1), false));
+  pilih(location.hash.slice(1), false);
 })();
 </script>
 </Shell>
