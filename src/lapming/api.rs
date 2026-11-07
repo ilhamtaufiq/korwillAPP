@@ -1249,9 +1249,21 @@ pub async fn anomali_daftar(
     for (id, pokmas) in daftar_proyek {
         proyek_id.entry(efektif_nama(&alias, &pokmas)).or_insert(id);
     }
-    let pilih: Vec<String> = match q.korfas.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-        Some(k) => vec![k.to_string()],
-        None => calc::daftar_korfas(&ds),
+    // Akun korwil hanya melihat korfasnya sendiri. Nama akun dicocokkan dengan nama korwil di data Lapming.
+    let semua_korfas = calc::daftar_korfas(&ds);
+    let pilih: Vec<String> = if user.role == "korwil" {
+        let nama: Option<String> = sqlx::query_scalar::<_, Option<String>>("SELECT nama FROM users WHERE id = ?")
+            .bind(user.id)
+            .fetch_optional(&st.db)
+            .await?
+            .flatten();
+        let kunci = nama.as_deref().map(norm_nama).unwrap_or_default();
+        semua_korfas.iter().filter(|k| !kunci.is_empty() && norm_nama(k) == kunci).cloned().collect()
+    } else {
+        match q.korfas.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            Some(k) => vec![k.to_string()],
+            None => semua_korfas.clone(),
+        }
     };
     let mut minggu_ada: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
     for (_, b) in ds.books() {
@@ -1314,5 +1326,13 @@ pub async fn anomali_daftar(
             v
         })
         .collect();
-    Ok(Json(json!({ "total": total, "items": items, "batas": ANOMALI_BATAS })))
+    // Daftar korfas untuk pilihan filter: semua untuk admin, hanya korfas sendiri untuk korwil.
+    let korfas_ui = if user.role == "korwil" { pilih.clone() } else { semua_korfas.clone() };
+    Ok(Json(json!({
+        "total": total,
+        "items": items,
+        "batas": ANOMALI_BATAS,
+        "korfas": korfas_ui,
+        "bisa_semua": user.role != "korwil",
+    })))
 }

@@ -11,17 +11,21 @@
     @media (min-width: 1024px) { body.sb-collapsed #topbar { left: 4rem; } body.sb-collapsed #page { padding-left: 4rem; } }
     body.sb-collapsed .nav-label, body.sb-collapsed .brand-text, body.sb-collapsed .section-label { display: none; }
     body.sb-collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
-  </style><script src="/app.js?v=6"></script><script src="/layout.js?v=6"></script></head><body class="bg-canvas font-sans text-ink min-h-screen"><aside id="sidebar"><div class="flex flex-col"><div class="flex h-16 items-center gap-3 border-b border-line px-4"><img src="/img/logo.png" alt="" class="h-8 w-8 shrink-0 rounded-lg"><div class="brand-text flex flex-col"><span class="text-sm font-bold leading-none">KorwilAPP</span><span class="text-xs text-ink3">Sanimas Wilayah</span></div></div><div class="p-4"><p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Menu Utama</p><nav class="flex flex-col gap-1"><a href="/" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Ringkasan Wilayah"><span class="material-symbols-outlined">grid_view</span><span class="nav-label">Ringkasan Wilayah</span></a><a href="/daftar-proyek.html" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Daftar Pekerjaan"><span class="material-symbols-outlined">construction</span><span class="nav-label">Daftar Pekerjaan</span></a><a href="/tambah-proyek.html" id="menu-tambah" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Tambah Pekerjaan"><span class="material-symbols-outlined">add_circle</span><span class="nav-label">Tambah Pekerjaan</span></a><a href="/users.html" id="menu-users" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Daftar User"><span class="material-symbols-outlined">group</span><span class="nav-label">Daftar User</span></a><a href="/log-dokumentasi.html" id="menu-log" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Log Dokumentasi"><span class="material-symbols-outlined">photo_camera</span><span class="nav-label">Log Dokumentasi</span></a><a href="/lapming.html" id="menu-lapming" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Laporan Lapming"><span class="material-symbols-outlined">monitoring</span><span class="nav-label">Laporan Lapming</span></a><a href="/anomali-data.html" id="menu-anomali" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold border-l-2 border-primary bg-primary-soft text-primary" title="Cek Anomali Data"><span class="material-symbols-outlined">rule</span><span class="nav-label">Cek Anomali Data</span></a><a href="/pengaturan.html" id="menu-pengaturan" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Pengaturan Sumber"><span class="material-symbols-outlined">settings</span><span class="nav-label">Pengaturan Sumber</span></a><a href="/progres-minggu.html" id="menu-progres-minggu" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Progres Lapming"><span class="material-symbols-outlined">query_stats</span><span class="nav-label">Progres Lapming</span></a></nav></div><div class="px-4 py-2"><p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Akun</p><nav class="flex flex-col gap-1"><a href="/ganti-sandi.html" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Ganti Kata Sandi"><span class="material-symbols-outlined">key</span><span class="nav-label">Ganti Kata Sandi</span></a></nav></div></div></aside><header id="topbar"><div class="flex items-center gap-3"><button id="sb-toggle" type="button" aria-label="Perkecil atau besarkan menu" class="flex h-11 w-11 items-center justify-center rounded-lg text-ink2 hover:bg-muted"><span class="material-symbols-outlined">menu</span></button><div class="hidden items-center gap-2 text-xs text-ink3 md:flex"><span class="material-symbols-outlined text-[16px]">map</span><span>Wilayah Operasional</span><span>/</span><span class="font-semibold text-ink">Korwil I - Jawa Barat</span></div></div><div class="flex items-center gap-3"><div class="flex flex-col text-right"><span id="user-name" class="text-sm font-semibold"></span><span id="user-role" class="text-xs text-ink3"></span></div><button onclick="logout()" class="h-9 rounded-lg border border-line px-3 text-sm font-semibold text-ink2 hover:bg-muted">Keluar</button></div></header><main id="page"><div class="mx-auto max-w-7xl px-4 pb-10 lg:px-6"><div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div><div class="mb-4 flex flex-col gap-1"><h1 class="text-xl font-bold">Cek Anomali Data</h1><p class="text-sm text-ink3">Data Lapming yang janggal dari seluruh minggu: fisik turun, angka tidak menjumlah, fisik melebihi keuangan, dan lain-lain. Pilih korfas untuk mempersempit daftar.</p></div><section class="mb-4 grid gap-3 sm:grid-cols-3"><select id="filter-korfas" aria-label="Filter korfas" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none"><option value="">Semua korfas</option></select><input id="filter-cari" type="search" aria-label="Cari anomali" placeholder="Cari pokmas atau kategori..." class="h-11 rounded-lg border border-line bg-white px-4 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none sm:col-span-2"></section><section id="ringkasan" class="mb-4 hidden grid gap-3 sm:grid-cols-2 xl:grid-cols-4"></section><p id="info" class="mb-3 text-sm text-ink3"></p><div class="overflow-x-auto rounded-lg border border-line bg-white"><table class="w-full min-w-[900px] text-left text-sm"><thead class="bg-muted text-xs font-semibold text-ink2"><tr><th class="px-4 py-2">Korfas</th><th class="px-4 py-2">Minggu</th><th class="px-4 py-2">Sumber</th><th class="px-4 py-2">Pokmas</th><th class="px-4 py-2">Kategori</th><th class="px-4 py-2">Keterangan</th></tr></thead><tbody id="anomali-rows" class="divide-y divide-line"></tbody></table></div><script>
+  </style><script src="/app.js?v=6"></script><script src="/layout.js?v=6"></script></head><body class="bg-canvas font-sans text-ink min-h-screen"><aside id="sidebar"><div class="flex flex-col"><div class="flex h-16 items-center gap-3 border-b border-line px-4"><img src="/img/logo.png" alt="" class="h-8 w-8 shrink-0 rounded-lg"><div class="brand-text flex flex-col"><span class="text-sm font-bold leading-none">KorwilAPP</span><span class="text-xs text-ink3">Sanimas Wilayah</span></div></div><div class="p-4"><p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Menu Utama</p><nav class="flex flex-col gap-1"><a href="/" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Ringkasan Wilayah"><span class="material-symbols-outlined">grid_view</span><span class="nav-label">Ringkasan Wilayah</span></a><a href="/daftar-proyek.html" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Daftar Pekerjaan"><span class="material-symbols-outlined">construction</span><span class="nav-label">Daftar Pekerjaan</span></a><a href="/tambah-proyek.html" id="menu-tambah" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Tambah Pekerjaan"><span class="material-symbols-outlined">add_circle</span><span class="nav-label">Tambah Pekerjaan</span></a><a href="/users.html" id="menu-users" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Daftar User"><span class="material-symbols-outlined">group</span><span class="nav-label">Daftar User</span></a><a href="/log-dokumentasi.html" id="menu-log" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Log Dokumentasi"><span class="material-symbols-outlined">photo_camera</span><span class="nav-label">Log Dokumentasi</span></a><a href="/lapming.html" id="menu-lapming" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Laporan Lapming"><span class="material-symbols-outlined">monitoring</span><span class="nav-label">Laporan Lapming</span></a><a href="/anomali-data.html" id="menu-anomali" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold border-l-2 border-primary bg-primary-soft text-primary" title="Cek Anomali Data"><span class="material-symbols-outlined">rule</span><span class="nav-label">Cek Anomali Data</span></a><a href="/pengaturan.html" id="menu-pengaturan" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Pengaturan Sumber"><span class="material-symbols-outlined">settings</span><span class="nav-label">Pengaturan Sumber</span></a><a href="/progres-minggu.html" id="menu-progres-minggu" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Progres Lapming"><span class="material-symbols-outlined">query_stats</span><span class="nav-label">Progres Lapming</span></a></nav></div><div class="px-4 py-2"><p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Akun</p><nav class="flex flex-col gap-1"><a href="/ganti-sandi.html" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Ganti Kata Sandi"><span class="material-symbols-outlined">key</span><span class="nav-label">Ganti Kata Sandi</span></a></nav></div></div></aside><header id="topbar"><div class="flex items-center gap-3"><button id="sb-toggle" type="button" aria-label="Perkecil atau besarkan menu" class="flex h-11 w-11 items-center justify-center rounded-lg text-ink2 hover:bg-muted"><span class="material-symbols-outlined">menu</span></button><div class="hidden items-center gap-2 text-xs text-ink3 md:flex"><span class="material-symbols-outlined text-[16px]">map</span><span>Wilayah Operasional</span><span>/</span><span class="font-semibold text-ink">Korwil I - Jawa Barat</span></div></div><div class="flex items-center gap-3"><div class="flex flex-col text-right"><span id="user-name" class="text-sm font-semibold"></span><span id="user-role" class="text-xs text-ink3"></span></div><button onclick="logout()" class="h-9 rounded-lg border border-line px-3 text-sm font-semibold text-ink2 hover:bg-muted">Keluar</button></div></header><main id="page"><div class="mx-auto max-w-7xl px-4 pb-10 lg:px-6"><div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div><div class="mb-4 flex flex-col gap-1"><h1 class="text-xl font-bold">Cek Anomali Data</h1><p class="text-sm text-ink3">Data Lapming yang janggal dari seluruh minggu: fisik turun, angka tidak menjumlah, fisik melebihi keuangan, dan lain-lain. Korwil otomatis melihat data korwil sendiri.</p></div><section class="mb-4 grid gap-3 sm:grid-cols-3"><select id="filter-korfas" aria-label="Filter korwil" class="h-11 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none"><option value="">Semua korwil</option></select><input id="filter-cari" type="search" aria-label="Cari anomali" placeholder="Cari pokmas atau kategori..." class="h-11 rounded-lg border border-line bg-white px-4 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none sm:col-span-2"></section><section id="ringkasan" class="mb-4 hidden grid gap-3 sm:grid-cols-2 xl:grid-cols-4"></section><p id="info" class="mb-3 text-sm text-ink3"></p><div class="overflow-x-auto rounded-lg border border-line bg-white"><table class="w-full min-w-[900px] text-left text-sm"><thead class="bg-muted text-xs font-semibold text-ink2"><tr><th class="px-4 py-2">Korwil</th><th class="px-4 py-2">Minggu</th><th class="px-4 py-2">Sumber</th><th class="px-4 py-2">Pokmas</th><th class="px-4 py-2">Kategori</th><th class="px-4 py-2">Keterangan</th></tr></thead><tbody id="anomali-rows" class="divide-y divide-line"></tbody></table></div><div class="mt-3 flex items-center justify-between gap-3"><span id="hal-info" class="text-sm text-ink3"></span><div class="flex gap-2"><button id="hal-prev" type="button" class="h-11 rounded-lg border border-line px-4 text-sm font-semibold text-ink2 hover:bg-muted disabled:opacity-50">Sebelumnya</button><button id="hal-next" type="button" class="h-11 rounded-lg border border-line px-4 text-sm font-semibold text-ink2 hover:bg-muted disabled:opacity-50">Berikutnya</button></div></div><script>
 const errorBox = document.getElementById('error-message');
+const PER_HALAMAN = 25;
 let semua = [];
+let halaman = 1;
+let pilihanKorwilDiisi = false;
 
-function tampilkan() {
+function daftarTersaring() {
   const q = document.getElementById('filter-cari').value.trim().toLowerCase();
-  const daftar = semua.filter((a) => !q ||
+  return semua.filter((a) => !q ||
     [a.pokmas, a.kategori, a.keterangan, a.korfas].join(' ').toLowerCase().includes(q));
-  const box = document.getElementById('anomali-rows');
-  box.innerHTML = daftar.length
-    ? daftar.map((a) => `
+}
+
+function baris(a) {
+  return `
       <tr class="align-top hover:bg-muted">
         <td class="px-4 py-2 text-ink2">${esc(a.korfas)}</td>
         <td class="whitespace-nowrap px-4 py-2 font-semibold">${esc(a.sheet)}</td>
@@ -29,13 +33,27 @@ function tampilkan() {
         <td class="px-4 py-2">${a.proyek_id ? `<a href="/detail-proyek.html?id=${a.proyek_id}" class="font-semibold text-primary hover:underline">${esc(a.pokmas)}</a>` : esc(a.pokmas)}</td>
         <td class="px-4 py-2 font-semibold text-warn">${esc(a.kategori)}</td>
         <td class="px-4 py-2 text-ink2">${esc(a.keterangan)}</td>
-      </tr>`).join('')
+      </tr>`;
+}
+
+function tampilkan() {
+  const daftar = daftarTersaring();
+  const totalHalaman = Math.max(1, Math.ceil(daftar.length / PER_HALAMAN));
+  if (halaman > totalHalaman) halaman = totalHalaman;
+  const awal = (halaman - 1) * PER_HALAMAN;
+  const potongan = daftar.slice(awal, awal + PER_HALAMAN);
+  document.getElementById('anomali-rows').innerHTML = potongan.length
+    ? potongan.map(baris).join('')
     : `<tr><td colspan="6" class="px-4 py-6 text-center text-ink3">${semua.length
       ? 'Tidak ada anomali yang cocok dengan pencarian.'
       : 'Tidak ada anomali. Semua data Lapming lolos pemeriksaan.'}</td></tr>`;
-  const info = document.getElementById('info');
-  info.textContent = `Menampilkan ${daftar.length} dari ${semua.length} anomali` +
-    (semua.length >= 5000 ? ' (dibatasi 5000 baris pertama; persempit dengan memilih korfas)' : '');
+  document.getElementById('info').textContent = `Total ${daftar.length} anomali` +
+    (semua.length >= 5000 ? ' (dibatasi 5000 baris pertama; persempit dengan memilih korwil)' : '');
+  document.getElementById('hal-info').textContent = daftar.length
+    ? `Halaman ${halaman} dari ${totalHalaman} • ${awal + 1}–${awal + potongan.length} dari ${daftar.length}`
+    : '';
+  document.getElementById('hal-prev').disabled = halaman <= 1;
+  document.getElementById('hal-next').disabled = halaman >= totalHalaman;
 }
 
 function ringkas() {
@@ -51,30 +69,49 @@ function ringkas() {
     </div>`).join('');
 }
 
+// Pilihan korwil diisi dari server. Akun korwil hanya mendapat korwilnya sendiri, dan itu terpilih otomatis.
+function isiPilihanKorwil(r) {
+  const pilihan = document.getElementById('filter-korfas');
+  const opsi = r.korfas.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+  pilihan.innerHTML = (r.bisa_semua ? '<option value="">Semua korwil</option>' : '') + opsi;
+  if (r.korfas.length) pilihan.value = r.bisa_semua ? '' : r.korfas[0];
+  pilihanKorwilDiisi = true;
+}
+
 async function muat() {
   const korfas = document.getElementById('filter-korfas').value;
   const q = korfas ? `?korfas=${encodeURIComponent(korfas)}` : '';
   document.getElementById('anomali-rows').innerHTML = skeletonRows(6, 6);
   const r = await api('GET', `/api/lapming/anomali${q}`);
+  if (!pilihanKorwilDiisi) isiPilihanKorwil(r);
+  if (!r.bisa_semua && !r.korfas.length) {
+    document.getElementById('anomali-rows').innerHTML =
+      '<tr><td colspan="6" class="px-4 py-6 text-center text-ink3">Akun korwil Anda belum cocok dengan nama korwil di data Lapming. Hubungi admin.</td></tr>';
+    document.getElementById('info').textContent = '';
+    document.getElementById('hal-info').textContent = '';
+    document.getElementById('hal-prev').disabled = true;
+    document.getElementById('hal-next').disabled = true;
+    semua = [];
+    ringkas();
+    return;
+  }
   semua = r.items;
+  halaman = 1;
   ringkas();
   tampilkan();
 }
 
+const jalan = () => muat().catch((err) => showError(errorBox, err.message));
+
+document.getElementById('filter-korfas').addEventListener('change', jalan);
+document.getElementById('filter-cari').addEventListener('input', () => { halaman = 1; tampilkan(); });
+document.getElementById('hal-prev').addEventListener('click', () => { halaman -= 1; tampilkan(); });
+document.getElementById('hal-next').addEventListener('click', () => { halaman += 1; tampilkan(); });
+
 (async () => {
   try {
-    const user = await requireAuth();
-    const info = await api('GET', '/api/lapming/info');
-    const pilihan = document.getElementById('filter-korfas');
-    (info.korfas || []).forEach((k) => {
-      const o = document.createElement('option');
-      o.value = k;
-      o.textContent = k;
-      pilihan.appendChild(o);
-    });
-    pilihan.addEventListener('change', () => muat().catch((e) => showError(errorBox, e.message)));
-    document.getElementById('filter-cari').addEventListener('input', tampilkan);
-    await muat();
+    await requireAuth();
+    await jalan();
   } catch (err) {
     showError(errorBox, err.message);
   }
