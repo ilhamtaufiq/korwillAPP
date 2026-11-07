@@ -1,0 +1,93 @@
+---
+import Shell from '../layouts/Shell.astro';
+---
+<Shell title="Pekerjaan Baru | KorwilAPP" menu="tambah">
+<p class="mb-4 text-sm text-ink2">Isi data kelompok masyarakat dan lokasi kegiatan Sanimas.</p>
+  <div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
+
+  <form id="project-form" class="flex flex-col gap-4">
+    <section class="flex flex-col gap-4 rounded-lg border border-line bg-white p-4">
+      <h2 class="text-base font-semibold">Detail Pekerjaan Sanitasi</h2>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="judul">Judul pekerjaan *</label>
+        <span class="text-xs text-ink3">Sesuai nota kesepakatan KSM dan dinas terkait.</span>
+        <input id="judul" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none" placeholder="Contoh: Pembangunan Tangki Septik Komunal">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="kegiatan">Kegiatan *</label>
+        <input id="kegiatan" required value="Sanimas" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="pokmas">Nama Pokmas / KSM *</label>
+        <input id="pokmas" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none" placeholder="Nama kelompok swadaya masyarakat">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="tahun">Tahun anggaran *</label>
+        <select id="tahun" required class="h-11 rounded-lg border border-line bg-white px-3 focus:border-[1.5px] focus:border-primary focus:outline-none">
+          <option>2024</option><option>2025</option><option selected>2026</option><option>2027</option>
+        </select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="kode_proyek">Kode pekerjaan</label>
+        <input id="kode_proyek" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none" placeholder="Contoh: PKM-JB-GRT-042">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="target_sasaran">Target sasaran (KK) *</label>
+        <input id="target_sasaran" type="number" min="1" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-4 rounded-lg border border-line bg-white p-4">
+      <h2 class="text-base font-semibold">Lokasi Sasaran</h2>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="desa">Desa / Kelurahan *</label>
+        <input id="desa" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="kecamatan">Kecamatan *</label>
+        <input id="kecamatan" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="kabupaten">Kabupaten / Kota *</label>
+        <input id="kabupaten" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+    </section>
+
+    <div class="flex gap-3">
+      <a href="/daftar-proyek.html" class="inline-flex h-11 flex-1 items-center justify-center rounded-lg border border-line bg-white font-semibold text-ink">Batal</a>
+      <button id="submit-btn" type="submit" class="h-11 flex-1 rounded-lg bg-primary font-semibold text-white hover:bg-primary-hover disabled:bg-muted disabled:text-ink3">Simpan Pekerjaan</button>
+    </div>
+  </form>
+<script is:inline>
+const errorBox = document.getElementById('error-message');
+const submitBtn = document.getElementById('submit-btn');
+const fieldIds = ['judul', 'kegiatan', 'pokmas', 'desa', 'kecamatan', 'kabupaten'];
+
+(async () => {
+  try {
+    const user = await requireAuth();
+    if (user.role !== 'admin') {
+      showError(errorBox, 'Hanya admin yang bisa membuat pekerjaan baru.');
+      submitBtn.disabled = true;
+    }
+  } catch (_) {}
+})();
+
+document.getElementById('project-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideError(errorBox);
+  submitBtn.disabled = true;
+  try {
+    const body = Object.fromEntries(fieldIds.map((id) => [id, document.getElementById(id).value.trim()]));
+    body.tahun = Number(document.getElementById('tahun').value);
+    body.kode_proyek = document.getElementById('kode_proyek').value.trim() || null;
+    body.target_sasaran = Number(document.getElementById('target_sasaran').value);
+    const project = await api('POST', '/api/projects', body);
+    location.href = `/detail-proyek.html?id=${project.id}`;
+  } catch (err) {
+    showError(errorBox, err.message);
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</Shell>

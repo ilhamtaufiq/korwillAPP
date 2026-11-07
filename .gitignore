@@ -4,3 +4,5 @@ uploads/
 *.exe
 .env
 node_modules/
+.astro/
+web/public/css/

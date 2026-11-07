@@ -1,0 +1,61 @@
+---
+import Shell from '../layouts/Shell.astro';
+---
+<Shell title="Ganti Kata Sandi | KorwilAPP" menu="sandi">
+<div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
+  <div id="success-message" class="mb-4 hidden rounded-lg border border-primary bg-primary-soft px-3 py-2 text-sm text-primary"></div>
+
+  <form id="password-form" class="flex flex-col gap-4 rounded-lg border border-line bg-white p-4">
+    <p class="text-sm text-ink2">Kata sandi baru minimal 8 karakter dan tidak boleh sama dengan username.</p>
+    <div class="flex flex-col gap-1.5">
+      <label class="text-sm font-semibold text-ink2" for="old_password">Kata sandi lama</label>
+      <input id="old_password" type="password" autocomplete="current-password" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+    </div>
+    <div class="flex flex-col gap-1.5">
+      <label class="text-sm font-semibold text-ink2" for="new_password">Kata sandi baru</label>
+      <input id="new_password" type="password" autocomplete="new-password" minlength="8" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+    </div>
+    <div class="flex flex-col gap-1.5">
+      <label class="text-sm font-semibold text-ink2" for="confirm_password">Ulangi kata sandi baru</label>
+      <input id="confirm_password" type="password" autocomplete="new-password" minlength="8" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+    </div>
+    <button id="submit-btn" type="submit" class="h-11 rounded-lg bg-primary font-semibold text-white hover:bg-primary-hover disabled:bg-muted disabled:text-ink3">Simpan Kata Sandi Baru</button>
+  </form>
+<script is:inline>
+const errorBox = document.getElementById('error-message');
+const successBox = document.getElementById('success-message');
+const submitBtn = document.getElementById('submit-btn');
+
+(async () => {
+  try {
+    await requireAuth();
+  } catch (_) {}
+})();
+
+document.getElementById('password-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideError(errorBox);
+  successBox.classList.add('hidden');
+
+  const newPassword = document.getElementById('new_password').value;
+  if (newPassword !== document.getElementById('confirm_password').value) {
+    showError(errorBox, 'Ulangi kata sandi baru tidak sama.');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  try {
+    await api('POST', '/api/me/password', {
+      old_password: document.getElementById('old_password').value,
+      new_password: newPassword,
+    });
+    successBox.textContent = 'Kata sandi berhasil diganti.';
+    successBox.classList.remove('hidden');
+    setTimeout(() => { location.href = '/daftar-proyek.html'; }, 800);
+  } catch (err) {
+    showError(errorBox, err.message);
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</Shell>

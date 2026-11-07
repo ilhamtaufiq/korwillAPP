@@ -81,6 +81,7 @@ fn router(state: AppState) -> Router {
         .route("/api/users/:id/password", post(users::reset_password))
         .route("/api/log", get(riwayat::list))
         .route("/api/lapming/info", get(lapming::api::info))
+        .route("/api/projects/:id/lapming", get(lapming::api::proyek))
         .route("/api/lapming/impor", post(lapming::api::impor))
         .route("/api/lapming/impor-link", post(lapming::api::impor_link))
         .route("/api/lapming/pratinjau", get(lapming::api::pratinjau))

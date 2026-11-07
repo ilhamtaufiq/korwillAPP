@@ -16,7 +16,7 @@ use sqlx::{MySql, MySqlPool, QueryBuilder};
 use tower_sessions::Session;
 
 use super::calc::{self, DataPokmas, TahapRpdb};
-use super::fmt::norm_nama;
+use super::fmt::{norm_nama, periode};
 use super::log::{self, LogEntri, Ubah};
 use super::model::{Book, Dataset, Row};
 use super::{pptx, read, xlsx};
@@ -632,4 +632,72 @@ pub async fn alias_simpan(
     }
     tx.commit().await?;
     Ok(Json(json!({ "alias": peta.len() })))
+}
+/// Progres Lapming satu pekerjaan: baris minggu dari sumber Sanimas dan LPK yang nama pokmasnya cocok
+/// (setelah alias). Dibaca dari database, jadi tidak perlu mengunduh file lagi.
+pub async fn proyek(
+    State(st): State<AppState>,
+    session: Session,
+    Path(id): Path<u64>,
+) -> Result<Json<Value>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    crate::projects::ensure_project_access(&st.db, &user, id).await?;
+    let pokmas: String = sqlx::query_scalar("SELECT pokmas FROM projects WHERE id = ? AND deleted_at IS NULL")
+        .bind(id)
+        .fetch_optional(&st.db)
+        .await?
+        .ok_or(AppError::NotFound)?;
+    let alias = muat_pokmas(&st.db).await?.alias;
+    let efektif = |nama: &str| -> String {
+        let k = norm_nama(nama);
+        match alias.get(&k) {
+            Some(baku) => norm_nama(baku),
+            None => k,
+        }
+    };
+    let cari = efektif(&pokmas);
+
+    let baris: Vec<(String, String)> = sqlx::query_as("SELECT CAST(jenis AS CHAR), data FROM lapming_data ORDER BY id")
+        .fetch_all(&st.db)
+        .await?;
+    let mut items: Vec<(u32, Value)> = Vec::new();
+    for (_, data) in baris {
+        let x: Row = serde_json::from_str(&data).map_err(internal)?;
+        if efektif(&x.nama) != cari {
+            continue;
+        }
+        let minggu: u32 = x.sheet.trim_start_matches('M').parse().unwrap_or(0);
+        let periode = match (x.mulai, x.selesai) {
+            (Some(a), Some(b)) => periode(a, b),
+            _ => String::new(),
+        };
+        let tgl = |d: Option<NaiveDate>| d.map(|d| d.format("%Y-%m-%d").to_string());
+        items.push((
+            minggu,
+            json!({
+                "jenis": x.jenis(),
+                "sheet": x.sheet,
+                "minggu": minggu,
+                "periode": periode,
+                "korfas": x.korfas,
+                "tahap": x.tahap,
+                "pagu": x.pagu,
+                "mulai": tgl(x.mulai),
+                "selesai": tgl(x.selesai),
+                "pekerja": x.p,
+                "hok": x.r,
+                "fisik_minggu_ini": x.af,
+                "fisik_kumulatif": x.ag,
+                "keuangan_minggu_ini": x.ac,
+                "keuangan_kumulatif": x.ad,
+                "dana_minggu_ini": x.z,
+                "dana_kumulatif": x.aa,
+                "target": x.ah,
+                "deviasi": x.ai(),
+            }),
+        ));
+    }
+    items.sort_by(|a, b| a.0.cmp(&b.0));
+    let items: Vec<Value> = items.into_iter().map(|(_, v)| v).collect();
+    Ok(Json(json!({ "pokmas": pokmas, "ditemukan": !items.is_empty(), "minggu": items })))
 }

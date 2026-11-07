@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 // Sumber warna dan font untuk semua halaman. Ubah warna di sini, lalu jalankan `npm run build:css`.
 module.exports = {
-  content: ['./static/**/*.html', './static/**/*.js'],
+  content: ['./web/src/**/*.{astro,html}', './web/public/*.js'],
   theme: {
     extend: {
       colors: {

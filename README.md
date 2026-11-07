@@ -66,17 +66,21 @@ Butuh Rust (stable) dan MySQL 8.
 
 Aplikasi harus dijalankan dari folder root proyek, karena folder `static/` dan `uploads/` dibaca dari lokasi itu.
 
-## Mengubah tampilan (CSS)
+## Mengubah halaman (Astro)
 
-Gaya dibuat dengan Tailwind yang di-build sekali, hasilnya ada di `static/css/app.css` dan ikut di repository. Setelah mengubah kelas Tailwind atau warna di halaman, jalankan:
+Halaman frontend ditulis dengan Astro di folder `web/`:
+- `web/src/pages/` berisi satu file `.astro` per halaman.
+- `web/src/layouts/` berisi `Base.astro` (head dan CSS) dan `Shell.astro` (sidebar, topbar, konten).
+- `web/public/` berisi `app.js`, `layout.js`, dan aset gambar.
+
+Hasil build ditulis ke `static/`, dan itulah yang dilayani server Rust. Setelah mengubah halaman atau gaya, jalankan:
 
 ```bash
 npm install
-npm run build:css
+npm run build
 ```
 
-Warna dan font ada di `tailwind.config.js`. Untuk pengembangan, `npm run watch:css` membangun ulang setiap ada perubahan.
-
+Lalu commit folder `static/` bersama perubahannya. Warna dan font ada di `tailwind.config.js`.
 ## Membuat akun admin pertama
 
 Aplikasi tidak membuat akun admin otomatis. Buat akun lewat perintah `create-user`. Password dibaca dari stdin supaya tidak tersimpan di riwayat shell:

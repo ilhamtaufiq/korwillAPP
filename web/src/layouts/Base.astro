@@ -1,0 +1,39 @@
+---
+// Kerangka HTML untuk semua halaman: head, font, dan CSS. Halaman dengan sidebar memakai Shell.astro.
+interface Props {
+  title: string;
+  shell?: boolean;
+}
+const { title, shell = false } = Astro.props;
+---
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{title}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link rel="icon" href="/img/favicon.png" type="image/png">
+  <link rel="stylesheet" href="/css/app.css?v=6">
+  <style is:inline>
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 20px; line-height: 1; display: inline-block; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+    #sidebar { position: fixed; left: 0; top: 0; height: 100%; width: 16rem; z-index: 50; display: none; flex-direction: column; justify-content: space-between; background: #fff; border-right: 1px solid #E2E8F0; transition: width .2s; overflow-y: auto; }
+    @media (min-width: 1024px) { #sidebar { display: flex; } }
+    body.sb-open #sidebar { display: flex; }
+    #topbar { position: fixed; top: 0; right: 0; left: 0; height: 4rem; z-index: 40; display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; background: #fff; border-bottom: 1px solid #E2E8F0; transition: left .2s; }
+    @media (min-width: 1024px) { #topbar { left: 16rem; } }
+    #page { padding-top: 4rem; transition: padding .2s; }
+    @media (min-width: 1024px) { #page { padding-left: 16rem; } }
+    body.sb-collapsed #sidebar { width: 4rem; }
+    @media (min-width: 1024px) { body.sb-collapsed #topbar { left: 4rem; } body.sb-collapsed #page { padding-left: 4rem; } }
+    body.sb-collapsed .nav-label, body.sb-collapsed .brand-text, body.sb-collapsed .section-label { display: none; }
+    body.sb-collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+  </style>
+  <script is:inline src="/app.js?v=6"></script>
+  {shell && <script is:inline src="/layout.js?v=6"></script>}
+</head>
+<body class="bg-canvas font-sans text-ink min-h-screen">
+  <slot />
+</body>
+</html>

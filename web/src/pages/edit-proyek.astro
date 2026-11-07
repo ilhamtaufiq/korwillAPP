@@ -1,0 +1,167 @@
+---
+import Shell from '../layouts/Shell.astro';
+---
+<Shell title="Edit Pekerjaan | KorwilAPP" menu="daftar">
+<div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
+  <div id="success-message" class="mb-4 hidden rounded-lg border border-primary bg-primary-soft px-3 py-2 text-sm text-primary"></div>
+
+  <form id="edit-form" class="flex flex-col gap-4" hidden>
+    <section class="flex flex-col gap-4 rounded-lg border border-line bg-white p-4">
+      <h2 class="text-base font-semibold">Detail Pekerjaan</h2>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="judul">Judul pekerjaan *</label>
+        <input id="judul" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="kegiatan">Kegiatan *</label>
+        <input id="kegiatan" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="pokmas">Nama Pokmas / KSM *</label>
+        <input id="pokmas" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="tahun">Tahun anggaran *</label>
+        <input id="tahun" type="number" min="2000" max="2100" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="kode_proyek">Kode pekerjaan</label>
+        <input id="kode_proyek" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none" placeholder="Contoh: PKM-JB-GRT-042">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="target_sasaran">Target sasaran (KK) *</label>
+        <input id="target_sasaran" type="number" min="1" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-4 rounded-lg border border-line bg-white p-4">
+      <h2 class="text-base font-semibold">Lokasi Sasaran</h2>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="desa">Desa / Kelurahan *</label>
+        <input id="desa" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="kecamatan">Kecamatan *</label>
+        <input id="kecamatan" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="kabupaten">Kabupaten / Kota *</label>
+        <input id="kabupaten" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-4 rounded-lg border border-line bg-white p-4">
+      <h2 class="text-base font-semibold">Penanggung Jawab dan Dana</h2>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="korwil_nama">Korwil</label>
+        <input id="korwil_nama" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="tfl_nama">FM Teknik</label>
+        <input id="tfl_nama" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="fm_pemberdayaan_nama">FM Pemberdayaan</label>
+        <input id="fm_pemberdayaan_nama" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="pagu_dana">Pagu dana (Rp)</label>
+        <input id="pagu_dana" type="number" min="0" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+      </div>
+    </section>
+
+    <div class="flex gap-3">
+      <a id="cancel-link" href="/daftar-proyek.html" class="inline-flex h-11 flex-1 items-center justify-center rounded-lg border border-line bg-white font-semibold text-ink">Batal</a>
+      <button id="submit-btn" type="submit" class="h-11 flex-1 rounded-lg bg-primary font-semibold text-white hover:bg-primary-hover disabled:bg-muted disabled:text-ink3">Simpan Perubahan</button>
+    </div>
+  </form>
+
+  <section id="delete-section" hidden class="mt-6 flex flex-col gap-3 rounded-lg border border-danger-line bg-white p-4">
+    <h2 class="text-base font-semibold text-danger">Hapus Pekerjaan</h2>
+    <p class="text-sm text-ink3">Pekerjaan beserta pemanfaat dan fotonya disembunyikan. Data bisa dipulihkan dari Log Dokumentasi.</p>
+    <button id="delete-btn" type="button" class="h-11 rounded-lg border border-danger-line bg-danger-soft font-semibold text-danger hover:bg-danger-soft/70 disabled:opacity-50">Hapus Pekerjaan</button>
+  </section>
+<script is:inline>
+const errorBox = document.getElementById('error-message');
+const successBox = document.getElementById('success-message');
+const form = document.getElementById('edit-form');
+const submitBtn = document.getElementById('submit-btn');
+const projectId = new URLSearchParams(location.search).get('id');
+const TEXT_FIELDS = ['judul', 'kegiatan', 'pokmas', 'desa', 'kecamatan', 'kabupaten', 'kode_proyek', 'korwil_nama', 'tfl_nama', 'fm_pemberdayaan_nama'];
+const REQUIRED_TEXT = ['judul', 'kegiatan', 'pokmas', 'desa', 'kecamatan', 'kabupaten'];
+
+function fill(project) {
+  for (const id of TEXT_FIELDS) {
+    document.getElementById(id).value = project[id] ?? '';
+  }
+  document.getElementById('tahun').value = project.tahun;
+  document.getElementById('target_sasaran').value = project.target_sasaran || '';
+  document.getElementById('pagu_dana').value = project.pagu_dana ?? '';
+  const back = `/detail-proyek.html?id=${project.id}`;
+  document.getElementById('cancel-link').href = back;
+}
+
+(async () => {
+  if (!projectId) {
+    showError(errorBox, 'Pekerjaan tidak ditemukan.');
+    return;
+  }
+  try {
+    const user = await requireAuth();
+    if (user.role !== 'admin') {
+      showError(errorBox, 'Hanya admin yang bisa mengubah data pekerjaan.');
+      return;
+    }
+    fill(await api('GET', `/api/projects/${projectId}`));
+    form.hidden = false;
+    document.getElementById('delete-section').hidden = false;
+  } catch (err) {
+    showError(errorBox, err.message);
+  }
+})();
+
+document.getElementById('delete-btn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const judul = document.getElementById('judul').value;
+  if (!confirm(`Hapus pekerjaan "${judul}"? Data bisa dipulihkan dari Log Dokumentasi.`)) return;
+  hideError(errorBox);
+  btn.disabled = true;
+  try {
+    await api('DELETE', `/api/projects/${projectId}`);
+    location.href = '/daftar-proyek.html';
+  } catch (err) {
+    showError(errorBox, err.message);
+    btn.disabled = false;
+  }
+});
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideError(errorBox);
+  successBox.classList.add('hidden');
+  submitBtn.disabled = true;
+  try {
+    const body = {};
+    for (const id of TEXT_FIELDS) {
+      body[id] = document.getElementById(id).value.trim() || null;
+    }
+    for (const id of REQUIRED_TEXT) {
+      body[id] = body[id] || '';
+    }
+    body.tahun = Number(document.getElementById('tahun').value);
+    body.target_sasaran = Number(document.getElementById('target_sasaran').value);
+    const pagu = document.getElementById('pagu_dana').value;
+    body.pagu_dana = pagu === '' ? null : Number(pagu);
+
+    await api('PUT', `/api/projects/${projectId}`, body);
+    successBox.textContent = 'Perubahan disimpan.';
+    successBox.classList.remove('hidden');
+    setTimeout(() => { location.href = `/detail-proyek.html?id=${projectId}`; }, 600);
+  } catch (err) {
+    showError(errorBox, err.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</Shell>

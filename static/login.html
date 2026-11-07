@@ -1,56 +1,17 @@
-<!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Masuk | KorwilAPP</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-<style>
-  .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 20px; line-height: 1; display: inline-block; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
-</style>
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/css/app.css?v=5">
-<script src="/app.js?v=5"></script>
-</head>
-<body class="bg-canvas font-sans text-ink min-h-screen">
-<main class="mx-auto flex w-full max-w-sm flex-col px-4 py-10">
-  <header class="mb-6 flex flex-col items-center text-center">
-    <img src="/logo.svg" alt="" class="mb-3 h-12 w-12">
-    <h1 class="text-2xl font-bold">KorwilAPP</h1>
-    <p class="mt-1 text-sm text-ink2">Sistem Dokumentasi Lapangan Korwil dan FM</p>
-  </header>
-
-  <section class="rounded-lg border border-line bg-white p-4">
-    <h2 class="text-lg font-semibold">Masuk</h2>
-    <p class="mt-1 text-sm text-ink2">Masukkan username dan kata sandi Anda.</p>
-
-    <div id="error-message" class="mt-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
-
-    <form id="login-form" class="mt-4 flex flex-col gap-4">
-      <div class="flex flex-col gap-1.5">
-        <label class="text-sm font-semibold text-ink2" for="username">Username</label>
-        <input id="username" name="username" type="text" autocomplete="username" required
-          class="h-11 w-full rounded-lg border border-line bg-white px-4 text-base focus:border-[1.5px] focus:border-primary focus:outline-none">
-      </div>
-      <div class="flex flex-col gap-1.5">
-        <div class="flex items-center justify-between">
-          <label class="text-sm font-semibold text-ink2" for="password">Kata sandi</label>
-          <button type="button" onclick="alert('Hubungi admin untuk reset kata sandi.')" class="text-xs font-semibold text-primary hover:underline">Lupa kata sandi?</button>
-        </div>
-        <input id="password" name="password" type="password" autocomplete="current-password" required
-          class="h-11 w-full rounded-lg border border-line bg-white px-4 text-base focus:border-[1.5px] focus:border-primary focus:outline-none">
-      </div>
-      <button id="submit-btn" type="submit"
-        class="h-11 w-full rounded-lg bg-primary font-semibold text-white hover:bg-primary-hover disabled:bg-muted disabled:text-ink3">
-        Masuk ke Sistem
-      </button>
-    </form>
-  </section>
-
-</main>
-
-<script>
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Masuk | KorwilAPP</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"><link rel="icon" href="/img/favicon.png" type="image/png"><link rel="stylesheet" href="/css/app.css?v=6"><style>
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 20px; line-height: 1; display: inline-block; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+    #sidebar { position: fixed; left: 0; top: 0; height: 100%; width: 16rem; z-index: 50; display: none; flex-direction: column; justify-content: space-between; background: #fff; border-right: 1px solid #E2E8F0; transition: width .2s; overflow-y: auto; }
+    @media (min-width: 1024px) { #sidebar { display: flex; } }
+    body.sb-open #sidebar { display: flex; }
+    #topbar { position: fixed; top: 0; right: 0; left: 0; height: 4rem; z-index: 40; display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; background: #fff; border-bottom: 1px solid #E2E8F0; transition: left .2s; }
+    @media (min-width: 1024px) { #topbar { left: 16rem; } }
+    #page { padding-top: 4rem; transition: padding .2s; }
+    @media (min-width: 1024px) { #page { padding-left: 16rem; } }
+    body.sb-collapsed #sidebar { width: 4rem; }
+    @media (min-width: 1024px) { body.sb-collapsed #topbar { left: 4rem; } body.sb-collapsed #page { padding-left: 4rem; } }
+    body.sb-collapsed .nav-label, body.sb-collapsed .brand-text, body.sb-collapsed .section-label { display: none; }
+    body.sb-collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+  </style><script src="/app.js?v=6"></script></head><body class="bg-canvas font-sans text-ink min-h-screen"><main class="grid min-h-screen md:grid-cols-2"><div class="relative hidden overflow-hidden md:block"><img src="/img/cover-login.webp" alt="" class="absolute inset-0 h-full w-full object-cover"></div><div class="flex items-center justify-center px-4 py-8 md:px-10"><div class="w-full max-w-sm"><img src="/img/cover-login.webp" alt="" class="mb-6 w-full rounded-xl md:hidden"><header class="mb-6 flex flex-col items-center text-center"><img src="/img/logo.png" alt="" class="mb-3 h-16 w-16"><h1 class="text-2xl font-bold">KorwilAPP</h1><p class="mt-1 text-sm text-ink2">Sistem Dokumentasi Lapangan Korwil dan FM</p></header><section class="rounded-xl border border-line bg-white p-6 shadow-sm"><h2 class="text-lg font-semibold">Masuk</h2><p class="mt-1 text-sm text-ink2">Gunakan username yang diberikan admin.</p><div id="error-message" class="mt-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div><form id="login-form" class="mt-5 flex flex-col gap-4"><div class="flex flex-col gap-1.5"><label class="text-sm font-semibold text-ink2" for="username">Username</label><input id="username" name="username" type="text" autocomplete="username" required class="h-11 w-full rounded-lg border border-line bg-white px-4 text-base focus:border-[1.5px] focus:border-primary focus:outline-none"></div><div class="flex flex-col gap-1.5"><div class="flex items-center justify-between"><label class="text-sm font-semibold text-ink2" for="password">Kata sandi</label><button type="button" onclick="alert('Hubungi admin untuk reset kata sandi.')" class="text-xs font-semibold text-primary hover:underline">Lupa kata sandi?</button></div><input id="password" name="password" type="password" autocomplete="current-password" required class="h-11 w-full rounded-lg border border-line bg-white px-4 text-base focus:border-[1.5px] focus:border-primary focus:outline-none"></div><button id="submit-btn" type="submit" class="mt-1 h-11 w-full rounded-lg bg-primary font-semibold text-white hover:bg-primary-hover disabled:bg-muted disabled:text-ink3">Masuk ke Sistem</button></form></section></div></div></main><script>
 const form = document.getElementById('login-form');
 const errorBox = document.getElementById('error-message');
 const submitBtn = document.getElementById('submit-btn');
@@ -73,6 +34,4 @@ form.addEventListener('submit', async (e) => {
     submitBtn.textContent = 'Masuk ke Sistem';
   }
 });
-</script>
-</body>
-</html>
+</script></body></html>

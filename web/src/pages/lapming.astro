@@ -1,0 +1,432 @@
+---
+import Shell from '../layouts/Shell.astro';
+---
+<Shell title="Laporan Lapming | KorwilAPP" menu="lapming">
+<div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
+  <div id="success-message" class="mb-4 hidden rounded-lg border border-primary bg-primary-soft px-3 py-2 text-sm text-primary"></div>
+
+  <div class="mb-4 flex flex-col gap-1">
+    <h1 class="text-xl font-bold">Laporan Lapming</h1>
+    <p class="text-sm text-ink3">Laporan mingguan Sanimas dan LPK per korfas dalam bentuk XLSX dan PPTX. Impor file rekap Lapming dulu, atau buat laporan langsung dari file.</p>
+  </div>
+
+  <section class="mb-6 rounded-lg border border-line bg-white p-4">
+    <h2 class="mb-1 font-semibold">1. Data sumber</h2>
+    <p class="mb-3 text-sm text-ink3">Impor file rekap (sheet M1, M2, ...). Perubahan nilai dibanding impor sebelumnya dicatat di log.</p>
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-ink2" for="f-san">File Sanimas (.xlsx)</label>
+        <input id="f-san" type="file" accept=".xlsx" class="text-sm">
+        <div class="flex items-center gap-3">
+          <button id="btn-impor-san" type="button" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Impor Sanimas</button>
+          <span id="st-san" class="text-xs text-ink3"></span>
+        </div>
+        <div class="flex items-center gap-2"><input id="l-san" type="url" value="https://docs.google.com/spreadsheets/d/1DekLV8Vobz1Y-ctymL-5JLOIwNE8u01I12IB7g0bvIo/edit?gid=267727772#gid=267727772" placeholder="atau tempel link Google Sheets/Drive" class="h-11 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm"><button id="btn-link-san" type="button" class="h-11 shrink-0 rounded-lg border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-primary disabled:opacity-50">Impor link</button></div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-ink2" for="f-lpk">File LPK (.xlsx)</label>
+        <input id="f-lpk" type="file" accept=".xlsx" class="text-sm">
+        <div class="flex items-center gap-3">
+          <button id="btn-impor-lpk" type="button" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Impor LPK</button>
+          <span id="st-lpk" class="text-xs text-ink3"></span>
+        </div>
+        <div class="flex items-center gap-2"><input id="l-lpk" type="url" value="https://docs.google.com/spreadsheets/d/11Q46nIuPOeKSPDUG1jcJbx2PPcJm5i7v2jLUIehdrUI/edit?gid=1088104240#gid=1088104240" placeholder="atau tempel link Google Sheets/Drive" class="h-11 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm"><button id="btn-link-lpk" type="button" class="h-11 shrink-0 rounded-lg border border-line bg-white px-3 text-sm font-semibold text-ink hover:border-primary disabled:opacity-50">Impor link</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-6 rounded-lg border border-line bg-white p-4">
+    <h2 class="mb-3 font-semibold">2. Buat laporan</h2>
+    <div class="grid gap-3 sm:grid-cols-3">
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="korfas">Korfas</label>
+        <select id="korfas" class="h-11 rounded-lg border border-line bg-white px-3 text-sm"></select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="minggu">Minggu</label>
+        <select id="minggu" class="h-11 rounded-lg border border-line bg-white px-3 text-sm"></select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="text-sm font-semibold text-ink2" for="tahap">Tahap</label>
+        <select id="tahap" class="h-11 rounded-lg border border-line bg-white px-3 text-sm"></select>
+      </div>
+    </div>
+    <div class="mt-4 flex flex-wrap gap-2">
+      <button id="btn-pratinjau" type="button" class="h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-primary">Pratinjau</button>
+      <button id="btn-xlsx" type="button" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Unduh XLSX</button>
+      <button id="btn-pptx" type="button" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Unduh PPTX</button>
+    </div>
+    <pre id="pratinjau" hidden class="mt-4 overflow-x-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs text-ink2"></pre>
+
+    <details class="mt-4">
+      <summary class="cursor-pointer text-sm font-semibold text-ink2">Dari file langsung (tanpa menyimpan ke database)</summary>
+      <div class="mt-3 grid gap-3 md:grid-cols-2">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-semibold text-ink2" for="d-san">File Sanimas (.xlsx)</label>
+          <input id="d-san" type="file" accept=".xlsx" class="text-sm">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-semibold text-ink2" for="d-lpk">File LPK (.xlsx)</label>
+          <input id="d-lpk" type="file" accept=".xlsx" class="text-sm">
+        </div>
+      </div>
+      <div class="mt-3 grid gap-3 md:grid-cols-2">
+        <input id="d-link-san" type="url" value="https://docs.google.com/spreadsheets/d/1DekLV8Vobz1Y-ctymL-5JLOIwNE8u01I12IB7g0bvIo/edit?gid=267727772#gid=267727772" placeholder="atau link Google Sheets/Drive Sanimas" class="h-11 rounded-lg border border-line px-3 text-sm">
+        <input id="d-link-lpk" type="url" value="https://docs.google.com/spreadsheets/d/11Q46nIuPOeKSPDUG1jcJbx2PPcJm5i7v2jLUIehdrUI/edit?gid=1088104240#gid=1088104240" placeholder="atau link Google Sheets/Drive LPK" class="h-11 rounded-lg border border-line px-3 text-sm">
+      </div>
+      <p class="mt-2 text-xs text-ink3">Link harus dibagikan sebagai "Siapa saja yang memiliki link". Korfas, minggu, dan tahap memakai pilihan di atas. Pilih korfas yang ada di file; kalau daftar korfas masih kosong, impor dulu salah satu file.</p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button id="btn-file-xlsx" type="button" class="h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-primary disabled:opacity-50">XLSX dari file</button>
+        <button id="btn-file-pptx" type="button" class="h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-primary disabled:opacity-50">PPTX dari file</button>
+      </div>
+    </details>
+  </section>
+
+  <section class="mb-6 rounded-lg border border-line bg-white p-4">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 class="font-semibold">3. Data RPDB</h2>
+        <p class="text-sm text-ink3">Jumlah RPDB yang sudah ditarik per tahap. Tahap bertanggal setelah tanggal laporan tidak dihitung.</p>
+      </div>
+      <button id="btn-rpdb" type="button" class="h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-primary">Muat daftar Pokmas</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[640px] text-sm">
+        <thead id="rpdb-head" class="bg-muted text-left text-xs uppercase tracking-wider text-ink3"></thead>
+        <tbody id="rpdb-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="mb-6 rounded-lg border border-line bg-white p-4">
+    <h2 class="mb-1 font-semibold">4. Alias nama Pokmas</h2>
+    <p class="mb-3 text-sm text-ink3">Samakan ejaan nama di sumber dengan nama baku, supaya data antar minggu dan RPDB cocok.</p>
+    <div id="alias-list" class="flex flex-col gap-2"></div>
+    <div class="mt-3 flex gap-2">
+      <button id="btn-alias-tambah" type="button" class="h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-primary">Tambah baris</button>
+      <button id="btn-alias-simpan" type="button" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Simpan alias</button>
+    </div>
+  </section>
+
+  <section class="mb-6 rounded-lg border border-line bg-white p-4">
+    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <h2 class="font-semibold">5. Log perubahan data</h2>
+        <p class="text-sm text-ink3">Perubahan nilai antar impor untuk korfas yang dipilih, terbaru dulu.</p>
+      </div>
+      <button id="btn-log" type="button" class="h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-primary">Muat log</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[640px] text-sm">
+        <thead class="bg-muted text-left text-xs uppercase tracking-wider text-ink3">
+          <tr><th class="px-3 py-2">Waktu</th><th class="px-3 py-2">Sumber</th><th class="px-3 py-2">Sheet</th><th class="px-3 py-2">Pokmas</th><th class="px-3 py-2">Perubahan</th></tr>
+        </thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+    <div class="mt-3 flex items-center justify-between gap-3">
+      <span id="log-info" class="text-sm text-ink3"></span>
+      <div class="flex gap-2">
+        <button id="log-prev" type="button" class="h-11 rounded-lg border border-line px-4 text-sm font-semibold text-ink2 hover:bg-muted disabled:opacity-50">Sebelumnya</button>
+        <button id="log-next" type="button" class="h-11 rounded-lg border border-line px-4 text-sm font-semibold text-ink2 hover:bg-muted disabled:opacity-50">Berikutnya</button>
+      </div>
+    </div>
+  </section>
+<script is:inline>
+const $ = (id) => document.getElementById(id);
+const errorBox = $('error-message');
+const successBox = $('success-message');
+const KUNCI_KORFAS = 'lapming-korfas';
+let logHalaman = 1;
+let logTotal = 0;
+
+function pesanOk(t) { hideError(errorBox); successBox.textContent = t; successBox.classList.remove('hidden'); }
+function pesanGagal(t) { successBox.classList.add('hidden'); showError(errorBox, t); }
+function bersih() { successBox.classList.add('hidden'); hideError(errorBox); }
+
+async function kirimBerkas(url, file) {
+  const res = await fetch(url, { method: 'POST', credentials: 'same-origin', body: file });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((data && data.error) || 'Permintaan gagal, coba lagi.');
+  return data;
+}
+
+async function unduh(res, namaCadangan) {
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error((data && data.error) || 'Laporan gagal dibuat.');
+  }
+  const cd = res.headers.get('Content-Disposition') || '';
+  const m = /filename="([^"]+)"/.exec(cd);
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = m ? m[1] : namaCadangan;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+function params() {
+  const p = new URLSearchParams({ korfas: $('korfas').value });
+  if ($('minggu').value) p.set('sheet', $('minggu').value);
+  if ($('tahap').value) p.set('tahap', $('tahap').value);
+  return p;
+}
+
+function isiSelect(el, nilai, kosongLabel, dipilih) {
+  el.innerHTML = (kosongLabel ? `<option value="">${esc(kosongLabel)}</option>` : '') +
+    nilai.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if (dipilih && nilai.includes(dipilih)) el.value = dipilih;
+}
+
+function tulisSumber(info) {
+  for (const [k, el] of [['san', $('st-san')], ['lpk', $('st-lpk')]]) {
+    const s = info.sumber[k];
+    el.textContent = s ? `Terakhir diimpor ${s.diperbarui} (${s.baris} baris)` : 'Belum ada data';
+  }
+}
+
+async function muatInfo(pilihKorfas) {
+  const korfasAwal = pilihKorfas || $('korfas').value || localStorage.getItem(KUNCI_KORFAS) || '';
+  const q = korfasAwal ? `?korfas=${encodeURIComponent(korfasAwal)}` : '';
+  const info = await api('GET', `/api/lapming/info${q}`);
+  isiSelect($('korfas'), info.korfas, '', korfasAwal);
+  isiSelect($('minggu'), info.minggu, 'Otomatis (minggu terakhir yang terisi)', $('minggu').value);
+  isiSelect($('tahap'), info.tahap, 'Semua tahap', $('tahap').value);
+  tulisSumber(info);
+}
+
+function tampilHasil(r) {
+  pesanOk(`Impor selesai: ${r.sheet_dibaca} dari ${r.sheet_total} sheet dibaca, ${r.baris} baris. ` +
+    (r.pertama_kali ? 'Ini impor pertama, belum ada pembanding.' : `${r.perubahan} baris berubah dibanding impor sebelumnya.`));
+}
+
+async function imporLink(jenis, inputId, tombol) {
+  bersih();
+  const link = $(inputId).value.trim();
+  if (!link) return pesanGagal('Tempel link Google Sheets atau Drive dulu.');
+  tombol.disabled = true;
+  try {
+    tampilHasil(await api('POST', `/api/lapming/impor-link?jenis=${jenis}`, { link }));
+    await muatInfo();
+  } catch (e) {
+    pesanGagal(e.message);
+  } finally {
+    tombol.disabled = false;
+  }
+}
+
+async function impor(jenis, inputId, tombol) {
+  bersih();
+  const file = $(inputId).files[0];
+  if (!file) return pesanGagal('Pilih file .xlsx dulu.');
+  tombol.disabled = true;
+  try {
+    const r = await kirimBerkas(`/api/lapming/impor?jenis=${jenis}`, file);
+    pesanOk(`Impor selesai: ${r.sheet_dibaca} dari ${r.sheet_total} sheet dibaca, ${r.baris} baris. ` +
+      (r.pertama_kali ? 'Ini impor pertama, belum ada pembanding.' : `${r.perubahan} baris berubah dibanding impor sebelumnya.`));
+    await muatInfo();
+  } catch (e) {
+    pesanGagal(e.message);
+  } finally {
+    tombol.disabled = false;
+  }
+}
+
+async function pratinjau() {
+  bersih();
+  try {
+    const r = await api('GET', `/api/lapming/pratinjau?${params()}`);
+    const el = $('pratinjau');
+    el.textContent = r.baris.join('\n');
+    el.hidden = false;
+  } catch (e) {
+    pesanGagal(e.message);
+  }
+}
+
+async function laporan(format, tombol) {
+  bersih();
+  tombol.disabled = true;
+  try {
+    const res = await fetch(`/api/lapming/laporan/${format}?${params()}`, { credentials: 'same-origin' });
+    await unduh(res, `laporan-lapming.${format}`);
+  } catch (e) {
+    pesanGagal(e.message);
+  } finally {
+    tombol.disabled = false;
+  }
+}
+
+async function laporanFile(format, tombol) {
+  bersih();
+  const san = $('d-san').files[0];
+  const lpk = $('d-lpk').files[0];
+  const lsan = $('d-link-san').value.trim();
+  const llpk = $('d-link-lpk').value.trim();
+  if (!san && !lpk && !lsan && !llpk) return pesanGagal('Pilih minimal satu file atau link sumber.');
+  if (!$('korfas').value) return pesanGagal('Pilih korfas dulu. Kalau daftarnya kosong, impor salah satu file terlebih dulu.');
+  const fd = new FormData();
+  if (san) fd.append('sanimas', san);
+  if (lpk) fd.append('lpk', lpk);
+  fd.append('link_sanimas', lsan);
+  fd.append('link_lpk', llpk);
+  fd.append('korfas', $('korfas').value);
+  fd.append('sheet', $('minggu').value);
+  fd.append('tahap', $('tahap').value);
+  tombol.disabled = true;
+  try {
+    const res = await fetch(`/api/lapming/laporan-file/${format}`, { method: 'POST', credentials: 'same-origin', body: fd });
+    await unduh(res, `laporan-lapming.${format}`);
+  } catch (e) {
+    pesanGagal(e.message);
+  } finally {
+    tombol.disabled = false;
+  }
+}
+
+// ---- RPDB
+async function muatRpdb() {
+  bersih();
+  try {
+    const r = await api('GET', `/api/lapming/pokmas?${params()}`);
+    const nTahap = Math.max(4, ...r.items.map((x) => x.tahap.length));
+    $('rpdb-head').innerHTML = '<tr><th class="px-3 py-2">Pokmas</th>' +
+      Array.from({ length: nTahap }, (_, i) => `<th class="px-3 py-2">RPDB ${i + 1} (Rp) / tanggal</th>`).join('') +
+      '<th class="px-3 py-2"></th></tr>';
+    $('rpdb-body').innerHTML = r.items.map((x) => {
+      const sel = Array.from({ length: nTahap }, (_, i) => {
+        const t = x.tahap[i] || {};
+        return `<td class="px-3 py-2"><div class="flex flex-col gap-1">
+          <input data-j="${i}" type="number" min="0" value="${t.jumlah ?? ''}" placeholder="Jumlah" class="h-9 w-36 rounded-lg border border-line px-2 text-sm">
+          <input data-t="${i}" type="date" value="${t.tanggal ?? ''}" class="h-9 w-36 rounded-lg border border-line px-2 text-sm">
+        </div></td>`;
+      }).join('');
+      return `<tr class="border-t border-line align-top" data-nama="${esc(x.nama)}">
+        <td class="px-3 py-2"><span class="font-medium">${esc(x.nama)}</span><br><span class="text-xs text-ink3">${esc(x.jenis)}</span></td>
+        ${sel}
+        <td class="px-3 py-2 text-right"><button type="button" data-simpan class="h-9 rounded-lg border border-line px-3 text-sm font-semibold text-primary hover:bg-primary-soft">Simpan</button></td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    pesanGagal(e.message);
+  }
+}
+
+$('rpdb-body').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-simpan]');
+  if (!btn) return;
+  const tr = btn.closest('tr');
+  const tahap = [...tr.querySelectorAll('[data-j]')].map((inp, i) => ({
+    jumlah: inp.value === '' ? null : Number(inp.value),
+    tanggal: tr.querySelector(`[data-t="${i}"]`).value || null,
+  }));
+  bersih();
+  btn.disabled = true;
+  try {
+    await api('PUT', '/api/lapming/rpdb', { nama: tr.dataset.nama, tahap });
+    pesanOk(`RPDB ${tr.dataset.nama} disimpan.`);
+  } catch (err) {
+    pesanGagal(err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---- Alias
+function barisAlias(a = { sumber: '', baku: '' }) {
+  const d = document.createElement('div');
+  d.className = 'grid gap-2 sm:grid-cols-[1fr_1fr_auto]';
+  d.innerHTML = `<input data-s value="${esc(a.sumber)}" placeholder="Nama di sumber" class="h-11 rounded-lg border border-line px-3 text-sm">
+    <input data-b value="${esc(a.baku)}" placeholder="Nama baku" class="h-11 rounded-lg border border-line px-3 text-sm">
+    <button type="button" data-hapus class="h-11 rounded-lg px-3 text-sm font-semibold text-danger hover:bg-danger-soft">Hapus</button>`;
+  return d;
+}
+
+async function muatAlias() {
+  const list = await api('GET', '/api/lapming/alias');
+  const box = $('alias-list');
+  box.innerHTML = '';
+  list.forEach((a) => box.appendChild(barisAlias(a)));
+}
+
+$('alias-list').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-hapus]');
+  if (b) b.parentElement.remove();
+});
+$('btn-alias-tambah').addEventListener('click', () => $('alias-list').appendChild(barisAlias()));
+$('btn-alias-simpan').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const items = [...$('alias-list').children].map((d) => ({
+    sumber: d.querySelector('[data-s]').value,
+    baku: d.querySelector('[data-b]').value,
+  }));
+  bersih();
+  btn.disabled = true;
+  try {
+    const r = await api('PUT', '/api/lapming/alias', items);
+    pesanOk(`${r.alias} alias disimpan.`);
+    await muatAlias();
+  } catch (err) {
+    pesanGagal(err.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---- Log
+async function muatLog() {
+  bersih();
+  try {
+    const r = await api('GET', `/api/lapming/log?korfas=${encodeURIComponent($('korfas').value)}&halaman=${logHalaman}`);
+    logTotal = r.total;
+    const hal = Math.max(1, Math.ceil(r.total / r.per_halaman));
+    $('log-body').innerHTML = r.items.length
+      ? r.items.map((x) => `<tr class="border-t border-line align-top">
+          <td class="whitespace-nowrap px-3 py-2 text-ink3">${esc(x.waktu)}</td><td class="px-3 py-2">${esc(x.sumber)}</td>
+          <td class="px-3 py-2">${esc(x.sheet)}</td><td class="px-3 py-2">${esc(x.pokmas)}</td><td class="px-3 py-2">${esc(x.perubahan)}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="px-3 py-6 text-center text-ink3">Belum ada perubahan tercatat.</td></tr>';
+    $('log-info').textContent = r.total ? `Halaman ${logHalaman} dari ${hal} (${r.total} perubahan)` : '';
+    $('log-prev').disabled = logHalaman <= 1;
+    $('log-next').disabled = logHalaman >= hal;
+  } catch (e) {
+    pesanGagal(e.message);
+  }
+}
+
+$('btn-impor-san').addEventListener('click', (e) => impor('san', 'f-san', e.currentTarget));
+$('btn-impor-lpk').addEventListener('click', (e) => impor('lpk', 'f-lpk', e.currentTarget));
+$('btn-link-san').addEventListener('click', (e) => imporLink('san', 'l-san', e.currentTarget));
+$('btn-link-lpk').addEventListener('click', (e) => imporLink('lpk', 'l-lpk', e.currentTarget));
+$('btn-pratinjau').addEventListener('click', pratinjau);
+$('btn-xlsx').addEventListener('click', (e) => laporan('xlsx', e.currentTarget));
+$('btn-pptx').addEventListener('click', (e) => laporan('pptx', e.currentTarget));
+$('btn-file-xlsx').addEventListener('click', (e) => laporanFile('xlsx', e.currentTarget));
+$('btn-file-pptx').addEventListener('click', (e) => laporanFile('pptx', e.currentTarget));
+$('btn-rpdb').addEventListener('click', muatRpdb);
+$('btn-log').addEventListener('click', () => { logHalaman = 1; muatLog(); });
+$('log-prev').addEventListener('click', () => { if (logHalaman > 1) { logHalaman -= 1; muatLog(); } });
+$('log-next').addEventListener('click', () => { logHalaman += 1; muatLog(); });
+$('korfas').addEventListener('change', async () => {
+  try { localStorage.setItem(KUNCI_KORFAS, $('korfas').value); } catch (_) {}
+  $('tahap').value = '';
+  await muatInfo($('korfas').value).catch((e) => pesanGagal(e.message));
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const user = await requireAuth();
+    if (user.role !== 'admin' && user.role !== 'korwil') {
+      location.href = '/';
+      return;
+    }
+    await muatInfo();
+    await muatAlias();
+  } catch (e) {
+    if (e && e.message !== 'Belum login') pesanGagal(e.message);
+  }
+});
+</script>
+</Shell>

@@ -1,0 +1,80 @@
+---
+// Kerangka halaman yang sudah login: sidebar, topbar, dan area konten (#page).
+// Menu admin dan korwil disembunyikan dulu, lalu ditampilkan oleh layout.js sesuai peran.
+import Base from './Base.astro';
+
+interface Props {
+  title: string;
+  menu?: string;
+}
+const { title, menu = '' } = Astro.props;
+
+const utama = [
+  { key: 'ringkasan', href: '/', label: 'Ringkasan Wilayah', icon: 'grid_view', id: '', hidden: false },
+  { key: 'daftar', href: '/daftar-proyek.html', label: 'Daftar Pekerjaan', icon: 'construction', id: '', hidden: false },
+  { key: 'tambah', href: '/tambah-proyek.html', label: 'Tambah Pekerjaan', icon: 'add_circle', id: 'menu-tambah', hidden: true },
+  { key: 'users', href: '/users.html', label: 'Daftar User', icon: 'group', id: 'menu-users', hidden: true },
+  { key: 'log', href: '/log-dokumentasi.html', label: 'Log Dokumentasi', icon: 'photo_camera', id: 'menu-log', hidden: true },
+  { key: 'lapming', href: '/lapming.html', label: 'Laporan Lapming', icon: 'monitoring', id: 'menu-lapming', hidden: true },
+];
+const akun = [{ key: 'sandi', href: '/ganti-sandi.html', label: 'Ganti Kata Sandi', icon: 'key', id: '', hidden: false }];
+const base = 'nav-item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold';
+const kelas = (k: string) => (k === menu ? `${base} border-l-2 border-primary bg-primary-soft text-primary` : `${base} text-ink2 hover:bg-muted`);
+---
+<Base title={title} shell={true}>
+  <aside id="sidebar">
+    <div class="flex flex-col">
+      <div class="flex h-16 items-center gap-3 border-b border-line px-4">
+        <img src="/img/logo.png" alt="" class="h-8 w-8 shrink-0 rounded-lg">
+        <div class="brand-text flex flex-col">
+          <span class="text-sm font-bold leading-none">KorwilAPP</span>
+          <span class="text-xs text-ink3">Sanimas Wilayah</span>
+        </div>
+      </div>
+      <div class="p-4">
+        <p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Menu Utama</p>
+        <nav class="flex flex-col gap-1">
+          {utama.map((i) => (
+            <a href={i.href} id={i.id || undefined} hidden={i.hidden} class={kelas(i.key)} title={i.label}>
+              <span class="material-symbols-outlined">{i.icon}</span><span class="nav-label">{i.label}</span>
+            </a>
+          ))}
+        </nav>
+      </div>
+      <div class="px-4 py-2">
+        <p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Akun</p>
+        <nav class="flex flex-col gap-1">
+          {akun.map((i) => (
+            <a href={i.href} class={kelas(i.key)} title={i.label}>
+              <span class="material-symbols-outlined">{i.icon}</span><span class="nav-label">{i.label}</span>
+            </a>
+          ))}
+        </nav>
+      </div>
+    </div>
+  </aside>
+  <header id="topbar">
+    <div class="flex items-center gap-3">
+      <button id="sb-toggle" type="button" aria-label="Perkecil atau besarkan menu" class="flex h-11 w-11 items-center justify-center rounded-lg text-ink2 hover:bg-muted">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+      <div class="hidden items-center gap-2 text-xs text-ink3 md:flex">
+        <span class="material-symbols-outlined text-[16px]">map</span>
+        <span>Wilayah Operasional</span><span>/</span>
+        <span class="font-semibold text-ink">Korwil I - Jawa Barat</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="flex flex-col text-right">
+        <span id="user-name" class="text-sm font-semibold"></span>
+        <span id="user-role" class="text-xs text-ink3"></span>
+      </div>
+      <button onclick="logout()" class="h-9 rounded-lg border border-line px-3 text-sm font-semibold text-ink2 hover:bg-muted">Keluar</button>
+    </div>
+  </header>
+  <main id="page">
+    <div class="mx-auto max-w-7xl px-4 pb-10 lg:px-6">
+      <slot />
+    </div>
+  </main>
+</Base>

@@ -1,0 +1,734 @@
+---
+import Shell from '../layouts/Shell.astro';
+---
+<Shell title="Detail Pekerjaan | KorwilAPP" menu="daftar">
+<a href="/daftar-proyek.html" class="mb-3 inline-flex h-11 items-center gap-1 text-sm font-semibold text-ink2 hover:text-primary"><span class="material-symbols-outlined">arrow_back</span>Kembali ke daftar</a>
+  <div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
+  <div id="success-message" class="mb-4 hidden rounded-lg border border-primary bg-primary-soft px-3 py-2 text-sm text-primary"></div>
+
+  <section class="mb-6 flex flex-col gap-4 rounded-lg border border-line bg-white p-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <p id="project-meta" class="text-xs font-semibold text-primary"></p>
+      <h1 id="project-title" class="mt-1 text-xl font-bold">Memuat...</h1>
+      <p id="project-pokmas" class="mt-1 text-sm text-ink2"></p>
+      <p id="project-location" class="mt-1 text-sm text-ink3"></p>
+      <p id="project-team" class="mt-1 text-sm text-ink2"></p>
+    </div>
+    <div class="flex flex-col items-stretch gap-3 md:items-end">
+      <p id="progress-label" class="text-sm font-semibold text-ink2"></p>
+      <a id="edit-link" hidden class="inline-flex h-11 items-center justify-center rounded-lg border border-line bg-white px-4 font-semibold text-ink hover:border-primary">Edit pekerjaan</a>
+      <button id="export-toggle" type="button" class="inline-flex h-11 items-center justify-center rounded-lg bg-primary px-4 font-semibold text-white hover:bg-primary-hover">Export PDF</button>
+    </div>
+  </section>
+
+  <section id="export-panel" class="mb-6 hidden rounded-lg border border-line bg-white p-4">
+    <div class="grid gap-6 lg:grid-cols-[280px_1fr]">
+      <div class="flex flex-col gap-4">
+        <h2 class="font-semibold">Opsi Ekspor PDF</h2>
+        <label class="flex items-center gap-3 text-sm">
+          <input id="opt-sel-kosong" type="checkbox" checked class="h-5 w-5 accent-primary">
+          Tampilkan kotak kosong untuk foto yang belum diunggah
+        </label>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-semibold text-ink2" for="opt-catatan">Catatan tambahan (maks. 150 karakter)</label>
+          <textarea id="opt-catatan" maxlength="150" rows="3" class="rounded-lg border border-line p-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none"></textarea>
+          <span id="catatan-count" class="text-right text-xs text-ink3">0/150 karakter</span>
+        </div>
+        <div class="mt-auto flex flex-col gap-3">
+          <button id="export-go" type="button" class="h-11 rounded-lg bg-primary px-4 font-semibold text-white hover:bg-primary-hover">Buat PDF (Unduh)</button>
+          <button id="export-cancel" type="button" class="h-11 rounded-lg border border-line bg-white px-4 font-semibold text-ink">Tutup</button>
+        </div>
+      </div>
+      <div class="flex min-h-[420px] flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-sm font-semibold text-ink2">Pratinjau Kertas</span>
+          <span id="preview-status" class="text-xs text-ink3"></span>
+        </div>
+        <iframe id="export-preview" title="Pratinjau PDF" class="h-[420px] w-full rounded-lg border border-line bg-muted"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <section id="lapming-panel" class="mb-6 hidden rounded-lg border border-line bg-white p-4">
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-2">
+      <div>
+        <h2 class="font-semibold">Progres Lapming</h2>
+        <p id="lapming-sub" class="text-sm text-ink3"></p>
+      </div>
+      <a href="/lapming.html" class="text-sm font-semibold text-primary hover:underline">Buka Laporan Lapming</a>
+    </div>
+    <div id="lapming-kosong" class="hidden rounded-lg bg-muted p-4 text-sm text-ink2">
+      Belum ada data Lapming untuk pokmas ini. Impor file rekap di halaman Laporan Lapming, lalu progres pekerjaan ini terisi otomatis.
+    </div>
+    <div id="lapming-isi" class="hidden">
+      <div id="lapming-kartu" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"></div>
+      <div class="mt-4 overflow-x-auto rounded-lg border border-line">
+        <table class="w-full min-w-[760px] text-sm">
+          <thead class="bg-muted text-left text-xs font-semibold text-ink2">
+            <tr>
+              <th class="px-3 py-2">Minggu</th>
+              <th class="px-3 py-2">Sumber</th>
+              <th class="px-3 py-2">Periode</th>
+              <th class="px-3 py-2 text-right">Pekerja</th>
+              <th class="px-3 py-2 text-right">Fisik kum.</th>
+              <th class="px-3 py-2 text-right">Target</th>
+              <th class="px-3 py-2 text-right">Deviasi</th>
+              <th class="px-3 py-2 text-right">Keu. kum.</th>
+              <th class="px-3 py-2 text-right">Dana kum. (Rp)</th>
+            </tr>
+          </thead>
+          <tbody id="lapming-rows" class="divide-y divide-line"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid gap-6 lg:grid-cols-[1fr_280px]">
+    <section class="overflow-hidden rounded-lg border border-line bg-white">
+      <div class="flex items-center justify-between border-b border-line px-4 py-3">
+        <h2 class="font-semibold">Progres Fisik per Pemanfaat</h2>
+        <span id="count-label" class="text-sm text-ink3"></span>
+      </div>
+      <div class="flex flex-col gap-3 border-b border-line px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div class="flex flex-wrap gap-2 text-xs font-semibold">
+          <button data-filter="all" class="filter-chip h-9 rounded-lg bg-primary px-3 text-white">Semua (<span id="cnt-all">0</span>)</button>
+          <button data-filter="belum" class="filter-chip h-9 rounded-lg bg-muted px-3 text-ink2">Belum lengkap (<span id="cnt-belum">0</span>)</button>
+          <button data-filter="lengkap" class="filter-chip h-9 rounded-lg bg-muted px-3 text-ink2">Lengkap (<span id="cnt-lengkap">0</span>)</button>
+        </div>
+        <input id="beneficiary-search" type="search" placeholder="Cari nama pemanfaat atau RT..."
+          class="h-9 rounded-lg border border-line bg-white px-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none md:w-64">
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[860px] text-left text-sm">
+          <thead class="bg-muted text-xs font-semibold text-ink2">
+            <tr>
+              <th class="px-3 py-2">No</th>
+              <th class="px-3 py-2">Nama Pemanfaat</th>
+              <th class="px-3 py-2">RT / RW / Dusun</th>
+              <th class="px-3 py-2">Komponen</th>
+              <th class="px-3 py-2 text-center">0%</th>
+              <th class="px-3 py-2 text-center">25%</th>
+              <th class="px-3 py-2 text-center">50%</th>
+              <th class="px-3 py-2 text-center">75%</th>
+              <th class="px-3 py-2 text-center">100%</th>
+              <th class="px-3 py-2 text-center">Foto</th>
+              <th class="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody id="beneficiary-rows" class="divide-y divide-line"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="flex flex-col gap-4">
+      <section id="members-panel" hidden class="flex flex-col gap-3 rounded-lg border border-line bg-white p-4">
+        <h2 class="font-semibold">Akun FM</h2>
+        <p class="text-xs text-ink3">Akun FM yang namanya sama dengan kolom FM Teknik atau FM Pemberdayaan dihubungkan otomatis. Tambahkan manual kalau namanya berbeda.</p>
+        <ul id="member-list" class="divide-y divide-line"></ul>
+        <div class="flex gap-2">
+          <select id="member-select" class="h-11 min-w-0 flex-1 rounded-lg border border-line bg-white px-3 text-sm"></select>
+          <button id="member-add" type="button" class="h-11 rounded-lg bg-primary px-4 font-semibold text-white hover:bg-primary-hover">Tambah</button>
+        </div>
+      </section>
+      <form id="add-form" class="flex flex-col gap-3 rounded-lg border border-line bg-white p-4">
+        <h2 class="font-semibold">Tambah Pemanfaat</h2>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-semibold text-ink2" for="nama">Nama *</label>
+          <input id="nama" required class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-semibold text-ink2" for="rt">RT / RW / Dusun</label>
+          <input id="rt" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-sm font-semibold text-ink2" for="nik">NIK (16 digit)</label>
+          <input id="nik" inputmode="numeric" maxlength="16" class="h-11 rounded-lg border border-line px-4 focus:border-[1.5px] focus:border-primary focus:outline-none">
+        </div>
+        <button type="submit" class="h-11 rounded-lg bg-primary font-semibold text-white hover:bg-primary-hover">Tambah</button>
+      </form>
+
+      <form id="import-form" class="flex flex-col gap-3 rounded-lg border border-line bg-white p-4">
+        <h2 class="font-semibold">Impor dari Teks</h2>
+        <p class="text-xs text-ink3">Tempel dari Excel atau CSV. Satu baris per pemanfaat: nama lalu RT/RW/Dusun. Header "nama" dilewati otomatis.</p>
+        <textarea id="import-text" rows="6" class="rounded-lg border border-line p-3 text-sm focus:border-[1.5px] focus:border-primary focus:outline-none"></textarea>
+        <button type="submit" class="h-11 rounded-lg border border-line bg-white font-semibold text-ink hover:border-[#CBD5E1]">Impor</button>
+      </form>
+    </aside>
+  </div>
+
+
+
+<div id="photo-sheet" hidden class="fixed inset-0 z-[60] flex items-end justify-center bg-ink/40 sm:items-center sm:p-4">
+  <div class="w-full max-w-md rounded-t-lg bg-white p-4 sm:rounded-lg">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <h2 class="font-semibold">Unggah Foto</h2>
+        <p id="sheet-caption" class="truncate text-xs text-ink3"></p>
+      </div>
+      <button id="sheet-close" type="button" aria-label="Tutup" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink2 hover:bg-muted">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="mt-4 flex aspect-square items-center justify-center overflow-hidden rounded-lg border border-line bg-muted">
+      <img id="sheet-preview" alt="" class="hidden h-full w-full object-contain">
+      <span id="sheet-placeholder" class="material-symbols-outlined text-5xl text-ink3">photo_camera</span>
+    </div>
+
+    <div class="mt-4 grid grid-cols-2 gap-2">
+      <button id="sheet-camera-btn" type="button" class="flex h-11 items-center justify-center gap-2 rounded-lg border border-line font-semibold text-ink hover:bg-muted">
+        <span class="material-symbols-outlined">photo_camera</span>Ambil Foto
+      </button>
+      <button id="sheet-gallery-btn" type="button" class="flex h-11 items-center justify-center gap-2 rounded-lg border border-line font-semibold text-ink hover:bg-muted">
+        <span class="material-symbols-outlined">photo_library</span>Pilih dari Galeri
+      </button>
+    </div>
+    <input id="sheet-camera" type="file" accept="image/*" capture="environment" class="hidden">
+    <input id="sheet-gallery" type="file" accept="image/*" class="hidden">
+
+    <div id="sheet-progress-wrap" class="mt-4 hidden">
+      <div class="flex justify-between text-xs font-semibold text-ink2"><span>Mengunggah foto...</span><span id="sheet-progress-text">0%</span></div>
+      <div class="mt-1 h-2 rounded-full bg-muted"><div id="sheet-progress" class="h-2 rounded-full bg-primary" style="width: 0%"></div></div>
+    </div>
+    <p id="sheet-error" class="mt-3 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></p>
+
+    <div class="mt-4 grid grid-cols-2 gap-2">
+      <button id="sheet-cancel" type="button" class="h-11 rounded-lg border border-line font-semibold text-ink hover:bg-muted">Batal</button>
+      <button id="sheet-save" type="button" disabled class="h-11 rounded-lg bg-primary font-semibold text-white hover:bg-primary-hover disabled:bg-muted disabled:text-ink3">Simpan</button>
+    </div>
+  </div>
+</div>
+<div id="preview-modal" hidden class="fixed inset-0 z-[70] flex items-center justify-center p-4">
+  <div id="preview-backdrop" class="absolute inset-0 bg-ink/60"></div>
+  <div class="relative flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white">
+    <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+      <p id="preview-caption" class="truncate text-sm font-semibold"></p>
+      <button id="preview-close" type="button" aria-label="Tutup" class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink2 hover:bg-muted">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="flex min-h-[12rem] flex-1 items-center justify-center bg-muted p-2">
+      <img id="preview-image" alt="Pratinjau foto" class="max-h-[70vh] w-auto max-w-full object-contain">
+    </div>
+    <div class="flex justify-end gap-2 border-t border-line px-4 py-3">
+      <button id="preview-delete" type="button" class="h-11 rounded-lg border border-danger-line bg-white px-4 font-semibold text-danger hover:bg-danger-soft">Hapus foto</button>
+      <button id="preview-done" type="button" class="h-11 rounded-lg bg-primary px-4 font-semibold text-white hover:bg-primary-hover" onclick="closePreview()">Tutup</button>
+    </div>
+  </div>
+</div>
+<script is:inline>
+const errorBox = document.getElementById('error-message');
+const successBox = document.getElementById('success-message');
+const projectId = new URLSearchParams(location.search).get('id');
+
+const BUILDINGS = [['bilik', 'Bilik'], ['tangki_septik', 'Tangki Septik']];
+const STAGES = [0, 25, 50, 75, 100];
+const MAX_PHOTO_BYTES = 20 * 1024 * 1024;
+
+function photoCell(beneficiaryId, key, stage, photoId) {
+  const cellKey = `${beneficiaryId}|${key}|${stage}`;
+  if (photoId) {
+    return `<td class="p-1">
+      <button class="photo-cell flex aspect-[4/3] w-full min-w-[4.5rem] max-w-[6rem] items-center justify-center overflow-hidden rounded-md border border-line bg-muted" data-cell="${cellKey}" data-photo="${photoId}" title="Ketuk untuk pratinjau">
+        <img src="/api/photos/${photoId}/thumb" alt="" class="h-full w-full object-contain">
+      </button>
+    </td>`;
+  }
+  return `<td class="p-1">
+    <button type="button" class="photo-add flex aspect-[4/3] w-full min-w-[4.5rem] max-w-[6rem] items-center justify-center rounded-md border border-dashed border-line text-xl text-ink3 hover:border-primary hover:text-primary" data-cell="${cellKey}" aria-label="Unggah foto">
+      <span class="material-symbols-outlined">add_a_photo</span>
+    </button>
+  </td>`;
+}
+
+function beneficiaryRows(b, photoIds, count) {
+  const nameCells = `
+    <td rowspan="2" class="px-3 py-2 align-middle text-ink3">${b.urut}</td>
+    <td rowspan="2" class="px-3 py-2 align-middle font-medium">${esc(b.nama)}${b.nik ? `<div class="text-xs font-normal text-ink3">NIK ${esc(b.nik)}</div>` : ''}</td>
+    <td rowspan="2" class="px-3 py-2 align-middle text-ink2">${esc(b.rt_rw_dusun)}</td>`;
+  const rows = BUILDINGS.map(([key, label], i) => {
+    const cells = STAGES.map((stage) => photoCell(b.id, key, stage, photoIds.get(`${b.id}|${key}|${stage}`))).join('');
+    return `<tr>
+      ${i === 0 ? nameCells : ''}
+      <td class="px-3 py-2 text-ink2">${label}</td>
+      ${cells}
+      ${i === 0 ? `
+        <td rowspan="2" class="px-3 py-2 text-center align-middle font-semibold ${count === 10 ? 'text-primary' : 'text-ink2'}">${count} / 10</td>
+        <td rowspan="2" class="px-3 py-2 align-middle text-right">
+          <button data-remove="${b.id}" data-nama="${esc(b.nama)}" class="remove-btn h-11 rounded-lg px-3 font-semibold text-danger hover:bg-danger-soft">Hapus</button>
+        </td>` : ''}
+    </tr>`;
+  });
+  return rows.join('');
+}
+
+// Angka Lapming disimpan sebagai pecahan (0,37 = 37%). Tampilan memakai koma seperti di laporan.
+function persenLap(v) {
+  return v == null ? '-' : (v * 100).toFixed(2).replace('.', ',') + '%';
+}
+
+function rupiahLap(v) {
+  return v == null ? '-' : Number(v).toLocaleString('id-ID');
+}
+
+async function loadLapming() {
+  const panel = document.getElementById('lapming-panel');
+  let r;
+  try {
+    r = await api('GET', `/api/projects/${projectId}/lapming`);
+  } catch (_) {
+    return;
+  }
+  panel.classList.remove('hidden');
+  document.getElementById('lapming-sub').textContent = `${r.pokmas}`;
+  const kosong = !r.ditemukan;
+  document.getElementById('lapming-kosong').classList.toggle('hidden', !kosong);
+  document.getElementById('lapming-isi').classList.toggle('hidden', kosong);
+  if (kosong) return;
+
+  const akhir = r.minggu[r.minggu.length - 1];
+  document.getElementById('lapming-sub').textContent =
+    `${r.pokmas} • ${akhir.jenis} • terbaru ${akhir.sheet}${akhir.periode ? ' (' + akhir.periode + ')' : ''}`;
+  const deviasi = akhir.deviasi == null
+    ? '-'
+    : (akhir.deviasi >= 0 ? '+' : '') + (akhir.deviasi * 100).toFixed(2).replace('.', ',') + ' poin';
+  const kartu = [
+    ['Fisik kumulatif', persenLap(akhir.fisik_kumulatif), akhir.target != null ? `Target ${persenLap(akhir.target)}` : 'Target belum diisi'],
+    ['Keuangan kumulatif', persenLap(akhir.keuangan_kumulatif), `Rp ${rupiahLap(akhir.dana_kumulatif)} dari pagu Rp ${rupiahLap(akhir.pagu)}`],
+    ['Deviasi terhadap target', deviasi, akhir.deviasi == null ? 'Target belum diisi' : (akhir.deviasi < 0 ? 'Di bawah target' : 'Di atas atau sesuai target')],
+    ['Pekerja minggu ini', String(akhir.pekerja), `${akhir.hok} HOK kumulatif`],
+  ];
+  document.getElementById('lapming-kartu').innerHTML = kartu.map(([lab, besar, sub]) => `
+    <div class="rounded-lg border border-line bg-white p-4">
+      <p class="text-xs font-semibold uppercase tracking-wider text-ink3">${esc(lab)}</p>
+      <p class="mt-1 text-2xl font-bold">${esc(besar)}</p>
+      <p class="mt-1 text-xs text-ink3">${esc(sub)}</p>
+    </div>`).join('');
+  document.getElementById('lapming-rows').innerHTML = r.minggu.map((m) => `
+    <tr class="hover:bg-muted">
+      <td class="px-3 py-2 font-semibold">${esc(m.sheet)}</td>
+      <td class="px-3 py-2 text-ink2">${esc(m.jenis)}${m.korfas ? ' • ' + esc(m.korfas) : ''}</td>
+      <td class="px-3 py-2 text-ink3">${esc(m.periode || '-')}</td>
+      <td class="px-3 py-2 text-right">${m.pekerja}</td>
+      <td class="px-3 py-2 text-right font-semibold">${persenLap(m.fisik_kumulatif)}</td>
+      <td class="px-3 py-2 text-right">${persenLap(m.target)}</td>
+      <td class="px-3 py-2 text-right">${persenLap(m.deviasi)}</td>
+      <td class="px-3 py-2 text-right">${persenLap(m.keuangan_kumulatif)}</td>
+      <td class="px-3 py-2 text-right">${rupiahLap(m.dana_kumulatif)}</td>
+    </tr>`).join('');
+}
+
+async function loadAll() {
+  document.getElementById('beneficiary-rows').innerHTML = skeletonRows(10);
+  const [project, beneficiaries, photos] = await Promise.all([
+    api('GET', `/api/projects/${projectId}`),
+    api('GET', `/api/projects/${projectId}/beneficiaries`),
+    api('GET', `/api/projects/${projectId}/photos`),
+  ]);
+
+  document.title = `${project.judul} | KorwilAPP`;
+  document.getElementById('project-meta').textContent = `${project.kegiatan} • TA ${project.tahun}`;
+  document.getElementById('project-title').textContent = project.judul;
+  document.getElementById('project-pokmas').textContent = project.pokmas;
+  document.getElementById('project-location').textContent =
+    `Desa ${project.desa}, Kec. ${project.kecamatan}, ${project.kabupaten}`;
+
+  const photoIds = new Map(photos.map((p) => [`${p.beneficiary_id}|${p.building}|${p.stage}`, p.id]));
+  const perBeneficiary = new Map();
+  photos.forEach((p) => perBeneficiary.set(p.beneficiary_id, (perBeneficiary.get(p.beneficiary_id) || 0) + 1));
+
+  const total = beneficiaries.length * BUILDINGS.length * STAGES.length;
+  document.getElementById('progress-label').textContent =
+    `Target ${project.target_sasaran} KK • ${total ? `Foto terisi ${photos.length} / ${total}` : 'Belum ada pemanfaat'}`;
+  const team = [
+    project.korwil_nama && `Korwil: ${project.korwil_nama}`,
+    project.tfl_nama && `FM Teknik: ${project.tfl_nama}`,
+    project.fm_pemberdayaan_nama && `FM Pemberdayaan: ${project.fm_pemberdayaan_nama}`,
+    project.pagu_dana && `Pagu: Rp ${Number(project.pagu_dana).toLocaleString('id-ID')}`,
+  ].filter(Boolean);
+  document.getElementById('project-team').textContent = team.join(' • ');
+  document.getElementById('count-label').textContent = `${beneficiaries.length} pemanfaat`;
+
+  lastData = { beneficiaries, photoIds, perBeneficiary };
+  renderRows();
+  loadLapming();
+}
+
+async function loadMembers() {
+  const [members, tfls] = await Promise.all([
+    api('GET', `/api/projects/${projectId}/members`),
+    api('GET', '/api/users/tfl'),
+  ]);
+  document.getElementById('member-list').innerHTML = members.length
+    ? members.map((m) => `
+        <li class="flex items-center justify-between gap-2 py-2 text-sm">
+          <span>${esc(m.nama || m.username)} <span class="text-ink3">(${esc(m.username)})</span></span>
+          <button data-user="${m.id}" class="member-remove h-11 rounded-lg px-2 font-semibold text-danger hover:bg-danger-soft">Hapus</button>
+        </li>`).join('')
+    : '<li class="py-2 text-sm text-ink3">Belum ada akun FM terhubung.</li>';
+
+  const linked = new Set(members.map((m) => m.id));
+  const options = tfls
+    .filter((t) => !linked.has(t.id))
+    .map((t) => `<option value="${t.id}">${esc(t.nama || t.username)}</option>`)
+    .join('');
+  document.getElementById('member-select').innerHTML =
+    options || '<option value="">Tidak ada akun FM lagi</option>';
+}
+
+document.getElementById('member-list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.member-remove');
+  if (!btn) return;
+  hideAll();
+  try {
+    await api('DELETE', `/api/projects/${projectId}/members/${btn.dataset.user}`);
+    await loadMembers();
+  } catch (err) {
+    showError(errorBox, err.message);
+  }
+});
+
+document.getElementById('member-add').addEventListener('click', async () => {
+  const userId = document.getElementById('member-select').value;
+  if (!userId) return;
+  hideAll();
+  try {
+    await api('POST', `/api/projects/${projectId}/members`, { user_id: Number(userId) });
+    await loadMembers();
+  } catch (err) {
+    showError(errorBox, err.message);
+  }
+});
+
+// Tabel progres: filter (Semua / Belum lengkap / Lengkap) dan pencarian nama atau RT.
+// Lengkap berarti 10 dari 10 sel foto sudah terisi.
+let lastData = { beneficiaries: [], photoIds: new Map(), perBeneficiary: new Map() };
+let activeFilter = 'all';
+
+function renderRows() {
+  const { beneficiaries, photoIds, perBeneficiary } = lastData;
+  // Nomor tampilan mengikuti urutan baris yang aktif, bukan kolom no di database.
+  beneficiaries.forEach((b, i) => { b.urut = i + 1; });
+  const q = document.getElementById('beneficiary-search').value.trim().toLowerCase();
+  const total = (b) => perBeneficiary.get(b.id) || 0;
+  const lengkap = beneficiaries.filter((b) => total(b) === 10).length;
+
+  document.getElementById('cnt-all').textContent = beneficiaries.length;
+  document.getElementById('cnt-lengkap').textContent = lengkap;
+  document.getElementById('cnt-belum').textContent = beneficiaries.length - lengkap;
+
+  const list = beneficiaries.filter((b) =>
+    (activeFilter === 'all' || (activeFilter === 'lengkap' ? total(b) === 10 : total(b) < 10)) &&
+    (!q || `${b.nama} ${b.rt_rw_dusun}`.toLowerCase().includes(q)));
+
+  document.getElementById('beneficiary-rows').innerHTML = list.length
+    ? list.map((b) => beneficiaryRows(b, photoIds, total(b))).join('')
+    : `<tr><td colspan="11" class="px-4 py-6 text-center text-ink3">${beneficiaries.length
+        ? 'Tidak ada pemanfaat yang cocok.'
+        : 'Belum ada pemanfaat.'}</td></tr>`;
+}
+
+document.querySelectorAll('.filter-chip').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    activeFilter = btn.dataset.filter;
+    document.querySelectorAll('.filter-chip').forEach((b) => {
+      const on = b === btn;
+      b.classList.toggle('bg-primary', on);
+      b.classList.toggle('text-white', on);
+      b.classList.toggle('bg-muted', !on);
+      b.classList.toggle('text-ink2', !on);
+    });
+    renderRows();
+  });
+});
+document.getElementById('beneficiary-search').addEventListener('input', renderRows);
+
+function showSuccess(message) {
+  successBox.textContent = message;
+  successBox.classList.remove('hidden');
+}
+
+function hideAll() {
+  hideError(errorBox);
+  successBox.classList.add('hidden');
+}
+
+// Lokasi perangkat saat foto diambil. Gagal atau ditolak user: foto tetap diunggah tanpa GPS.
+function currentPosition() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    );
+  });
+}
+
+// Unggah dengan progres: XHR memberi tahu persentase yang sudah terkirim.
+async function uploadPhoto(beneficiaryId, key, stage, file, onProgress) {
+  if (file.size > MAX_PHOTO_BYTES) {
+    throw new Error('Ukuran foto maksimal 20 MB.');
+  }
+  const geo = await currentPosition();
+  const qs = geo ? `?lat=${geo.lat}&lng=${geo.lng}` : '';
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/beneficiaries/${beneficiaryId}/photos/${key}/${stage}${qs}`);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) return resolve();
+      let msg = 'Foto gagal diunggah.';
+      try { msg = JSON.parse(xhr.responseText).error || msg; } catch (_) {}
+      reject(new Error(msg));
+    };
+    xhr.onerror = () => reject(new Error('Koneksi terputus, coba lagi.'));
+    xhr.send(file);
+  });
+}
+
+// Sheet unggah foto (sesuai Stitch): pilih dari kamera atau galeri, lihat pratinjau persegi, lalu simpan.
+// Dibungkus DOMContentLoaded karena markup sheet ada di akhir halaman.
+document.addEventListener('DOMContentLoaded', () => {
+const sheet = document.getElementById('photo-sheet');
+const sheetPreview = document.getElementById('sheet-preview');
+const sheetSave = document.getElementById('sheet-save');
+let sheetCell = null;
+let sheetFile = null;
+
+function setSheetError(message) {
+  const el = document.getElementById('sheet-error');
+  el.textContent = message || '';
+  el.classList.toggle('hidden', !message);
+}
+
+function openSheet(cellKey) {
+  const [bid, key, stage] = cellKey.split('|');
+  const nama = lastData.beneficiaries.find((b) => String(b.id) === bid)?.nama || 'Pemanfaat';
+  sheetCell = cellKey;
+  sheetFile = null;
+  const label = BUILDINGS.find(([k]) => k === key)?.[1] || key;
+  document.getElementById('sheet-caption').textContent = `${nama} • ${label} • tahap ${stage}%`;
+  sheetPreview.classList.add('hidden');
+  sheetPreview.removeAttribute('src');
+  document.getElementById('sheet-placeholder').classList.remove('hidden');
+  document.getElementById('sheet-progress-wrap').classList.add('hidden');
+  setSheetError('');
+  sheetSave.disabled = true;
+  sheet.hidden = false;
+}
+
+function closeSheet() {
+  sheet.hidden = true;
+  sheetCell = null;
+  sheetFile = null;
+}
+
+function setSheetFile(file) {
+  if (!file) return;
+  sheetFile = file;
+  sheetPreview.src = URL.createObjectURL(file);
+  sheetPreview.classList.remove('hidden');
+  document.getElementById('sheet-placeholder').classList.add('hidden');
+  setSheetError('');
+  sheetSave.disabled = false;
+}
+
+document.getElementById('beneficiary-rows').addEventListener('click', (e) => {
+  const add = e.target.closest('.photo-add');
+  if (add) openSheet(add.dataset.cell);
+});
+document.getElementById('sheet-camera-btn').addEventListener('click', () => document.getElementById('sheet-camera').click());
+document.getElementById('sheet-gallery-btn').addEventListener('click', () => document.getElementById('sheet-gallery').click());
+document.getElementById('sheet-camera').addEventListener('change', (e) => { setSheetFile(e.target.files[0]); e.target.value = ''; });
+document.getElementById('sheet-gallery').addEventListener('change', (e) => { setSheetFile(e.target.files[0]); e.target.value = ''; });
+document.getElementById('sheet-close').addEventListener('click', closeSheet);
+document.getElementById('sheet-cancel').addEventListener('click', closeSheet);
+
+sheetSave.addEventListener('click', async () => {
+  if (!sheetFile || !sheetCell) return;
+  const [bid, key, stage] = sheetCell.split('|');
+  const bar = document.getElementById('sheet-progress');
+  const barText = document.getElementById('sheet-progress-text');
+  document.getElementById('sheet-progress-wrap').classList.remove('hidden');
+  sheetSave.disabled = true;
+  setSheetError('');
+  try {
+    await uploadPhoto(bid, key, stage, sheetFile, (pct) => {
+      bar.style.width = `${pct}%`;
+      barText.textContent = `${pct}%`;
+    });
+    closeSheet();
+    hideAll();
+    await loadAll();
+  } catch (err) {
+    setSheetError(err.message);
+    sheetSave.disabled = false;
+  }
+});
+});
+
+// Ketuk foto untuk menghapusnya (dengan konfirmasi). Hapus pemanfaat juga lewat listener ini.
+document.getElementById('beneficiary-rows').addEventListener('click', async (e) => {
+  const cell = e.target.closest('.photo-cell');
+  const remove = e.target.closest('.remove-btn');
+  if (remove) {
+    if (!confirm(`Hapus ${remove.dataset.nama} beserta fotonya? Data bisa dipulihkan dari Log Dokumentasi.`)) return;
+    hideAll();
+    try {
+      await api('DELETE', `/api/beneficiaries/${remove.dataset.remove}`);
+      await loadAll();
+    } catch (err) {
+      showError(errorBox, err.message);
+    }
+    return;
+  }
+  if (!cell) return;
+  openPreview(cell.dataset.cell, cell.dataset.photo);
+});
+
+// Pratinjau foto ukuran besar. Hapus hanya lewat tombol di dalam pratinjau, dengan konfirmasi.
+// Elemen pratinjau ada di akhir halaman, jadi diambil saat dibutuhkan, bukan saat skrip dijalankan.
+const getPreviewModal = () => document.getElementById('preview-modal');
+let previewCell = null;
+
+function openPreview(cellKey, photoId) {
+  const [bid, key, stage] = cellKey.split('|');
+  const nama = lastData.beneficiaries.find((b) => String(b.id) === bid)?.nama || 'Pemanfaat';
+  const label = BUILDINGS.find(([k]) => k === key)?.[1] || key;
+  previewCell = cellKey;
+  document.getElementById('preview-caption').textContent = `${nama} • ${label} • tahap ${stage}%`;
+  document.getElementById('preview-image').src = `/api/photos/${photoId}/image`;
+  getPreviewModal().hidden = false;
+}
+
+function closePreview() {
+  getPreviewModal().hidden = true;
+  previewCell = null;
+  document.getElementById('preview-image').removeAttribute('src');
+}
+
+// Satu listener di document untuk tombol pratinjau (tutup dan hapus).
+document.addEventListener('click', async (e) => {
+  if (e.target.closest('#preview-close, #preview-backdrop, #preview-done')) {
+    closePreview();
+    return;
+  }
+  if (!e.target.closest('#preview-delete')) return;
+  if (!previewCell) return;
+  if (!confirm('Hapus foto di sel ini? Foto bisa dipulihkan dari Log Dokumentasi.')) return;
+  const [bid, key, stage] = previewCell.split('|');
+  hideAll();
+  try {
+    await api('DELETE', `/api/beneficiaries/${bid}/photos/${key}/${stage}`);
+    closePreview();
+    await loadAll();
+  } catch (err) {
+    showError(errorBox, err.message);
+  }
+});
+
+document.getElementById('add-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideAll();
+  try {
+    await api('POST', `/api/projects/${projectId}/beneficiaries`, {
+      nama: document.getElementById('nama').value,
+      rt_rw_dusun: document.getElementById('rt').value,
+      nik: document.getElementById('nik').value.trim() || null,
+    });
+    e.target.reset();
+    await loadAll();
+  } catch (err) {
+    showError(errorBox, err.message);
+  }
+});
+
+document.getElementById('import-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  hideAll();
+  try {
+    const result = await api('POST', `/api/projects/${projectId}/beneficiaries/import`, undefined,
+      document.getElementById('import-text').value);
+    document.getElementById('import-text').value = '';
+    showSuccess(`${result.imported} pemanfaat berhasil diimpor.`);
+    await loadAll();
+  } catch (err) {
+    showError(errorBox, err.message);
+  }
+});
+
+function exportParams(inline) {
+  const params = new URLSearchParams({
+    sel_kosong: document.getElementById('opt-sel-kosong').checked ? 'true' : 'false',
+    catatan: document.getElementById('opt-catatan').value.trim(),
+  });
+  if (inline) params.set('inline', 'true');
+  return params;
+}
+
+// Pratinjau PDF memakai renderer yang sama dengan unduhan. Dijeda sebentar supaya tidak meminta PDF setiap ketukan.
+let previewTimer = null;
+function refreshPreview() {
+  clearTimeout(previewTimer);
+  const status = document.getElementById('preview-status');
+  status.textContent = 'Memperbarui...';
+  previewTimer = setTimeout(() => {
+    document.getElementById('export-preview').src =
+      `/api/projects/${projectId}/export.pdf?${exportParams(true)}&_=${Date.now()}`;
+    status.textContent = '';
+  }, 500);
+}
+
+document.getElementById('export-toggle').addEventListener('click', () => {
+  const panel = document.getElementById('export-panel');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) refreshPreview();
+});
+
+document.getElementById('opt-sel-kosong').addEventListener('change', refreshPreview);
+
+document.getElementById('opt-catatan').addEventListener('input', (e) => {
+  document.getElementById('catatan-count').textContent = `${e.target.value.length}/150 karakter`;
+  refreshPreview();
+});
+
+document.getElementById('export-cancel').addEventListener('click', () => {
+  document.getElementById('export-panel').classList.add('hidden');
+});
+
+document.getElementById('export-go').addEventListener('click', () => {
+  const params = new URLSearchParams({
+    sel_kosong: document.getElementById('opt-sel-kosong').checked ? 'true' : 'false',
+    catatan: document.getElementById('opt-catatan').value.trim(),
+  });
+  location.href = `/api/projects/${projectId}/export.pdf?${params}`;
+});
+
+(async () => {
+  if (!projectId) {
+    showError(errorBox, 'Pekerjaan tidak ditemukan.');
+    return;
+  }
+  try {
+    const user = await requireAuth();
+    if (user.role === 'admin') {
+      const link = document.getElementById('edit-link');
+      if (link) {
+        link.href = `/edit-proyek.html?id=${projectId}`;
+        link.hidden = false;
+      }
+      const panel = document.getElementById('members-panel');
+      if (panel) panel.hidden = false;
+      await loadMembers();
+    }
+    await loadAll();
+  } catch (err) {
+    showError(errorBox, err.message);
+  }
+})();
+</script>
+</Shell>
