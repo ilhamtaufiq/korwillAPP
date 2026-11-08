@@ -6,7 +6,9 @@ use axum::{
     Json,
 };
 use image::{imageops::FilterType, ColorType, DynamicImage};
+use axum::http::HeaderMap;
 use serde::Serialize;
+use std::{collections::hash_map::DefaultHasher, hash::{Hash, Hasher}};
 use sqlx::MySqlPool;
 use tower_sessions::Session;
 
@@ -199,10 +201,41 @@ pub async fn delete(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// Membalas bytes foto dengan ETag dari isinya. Sel yang diunggah ulang setelah dihapus memakai id yang sama,
+/// jadi URL-nya tidak berubah. Karena itu browser harus memeriksa ulang (no-cache) dan hanya memakai
+/// salinan lama jika ETag-nya masih sama (304).
+fn respons_foto(bytes: Vec<u8>, headers: &HeaderMap) -> Response {
+    let mut hasher = DefaultHasher::new();
+    bytes.hash(&mut hasher);
+    let etag = format!("\"{:016x}\"", hasher.finish());
+
+    let cocok = headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.split(',').any(|t| t.trim() == etag || t.trim() == "*"));
+    let umum = [
+        (header::CACHE_CONTROL, "private, no-cache"),
+        (header::ETAG, etag.as_str()),
+    ];
+    if cocok {
+        return (StatusCode::NOT_MODIFIED, umum).into_response();
+    }
+    (
+        [
+            (header::CONTENT_TYPE, "image/jpeg"),
+            (header::CACHE_CONTROL, "private, no-cache"),
+            (header::ETAG, etag.as_str()),
+        ],
+        bytes,
+    )
+        .into_response()
+}
+
 /// Foto ukuran penuh untuk pratinjau. Aksesnya diperiksa seperti thumbnail.
 pub async fn image(
     State(st): State<AppState>,
     session: Session,
+    headers: HeaderMap,
     Path(id): Path<u64>,
 ) -> Result<Response, AppError> {
     let user = current_user(&session, &st.db).await?;
@@ -219,20 +252,14 @@ pub async fn image(
     ensure_project_access(&st.db, &user, project_id).await?;
 
     let bytes = tokio::fs::read(&path).await.map_err(|_| AppError::NotFound)?;
-    Ok((
-        [
-            (header::CONTENT_TYPE, "image/jpeg"),
-            (header::CACHE_CONTROL, "private, max-age=3600"),
-        ],
-        bytes,
-    )
-        .into_response())
+    Ok(respons_foto(bytes, &headers))
 }
 
 /// Thumbnail satu foto. Tetap diperiksa aksesnya karena foto tidak boleh terbuka tanpa login.
 pub async fn thumb(
     State(st): State<AppState>,
     session: Session,
+    headers: HeaderMap,
     Path(id): Path<u64>,
 ) -> Result<Response, AppError> {
     let user = current_user(&session, &st.db).await?;
@@ -249,14 +276,7 @@ pub async fn thumb(
     ensure_project_access(&st.db, &user, project_id).await?;
 
     let bytes = tokio::fs::read(&thumb_path).await.map_err(|_| AppError::NotFound)?;
-    Ok((
-        [
-            (header::CONTENT_TYPE, "image/jpeg"),
-            (header::CACHE_CONTROL, "private, max-age=3600"),
-        ],
-        bytes,
-    )
-        .into_response())
+    Ok(respons_foto(bytes, &headers))
 }
 
 /// Foto disimpan utuh (tidak dipotong), hanya diperkecil jika terlalu besar. Hasilnya versi besar dan thumbnail (JPEG).
@@ -332,6 +352,25 @@ mod tests {
     fn orientation_1_and_3_keep_dimensions() {
         assert_eq!(apply_orientation(landscape(), 1).dimensions(), (4, 2));
         assert_eq!(apply_orientation(landscape(), 3).dimensions(), (4, 2));
+    }
+
+    #[test]
+    fn foto_diunggah_ulang_dikenali_lewat_etag() {
+        let kosong = HeaderMap::new();
+        let lama = respons_foto(b"foto lama".to_vec(), &kosong);
+        let etag = lama.headers().get(header::ETAG).unwrap().clone();
+        assert_eq!(lama.status(), StatusCode::OK);
+        assert_eq!(lama.headers().get(header::CACHE_CONTROL).unwrap(), "private, no-cache");
+
+        // Browser yang masih punya salinan lama: isi sama -> 304.
+        let mut minta = HeaderMap::new();
+        minta.insert(header::IF_NONE_MATCH, etag.clone());
+        assert_eq!(respons_foto(b"foto lama".to_vec(), &minta).status(), StatusCode::NOT_MODIFIED);
+
+        // Foto baru di id yang sama -> ETag beda -> 200 dengan isi baru.
+        let baru = respons_foto(b"foto baru".to_vec(), &minta);
+        assert_eq!(baru.status(), StatusCode::OK);
+        assert_ne!(baru.headers().get(header::ETAG).unwrap(), &etag);
     }
 
     #[test]
