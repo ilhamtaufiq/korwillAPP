@@ -140,6 +140,11 @@ async function laporan(format, tombol) {
   bersih();
   tombol.disabled = true;
   try {
+    // Perbarui data dari link sumber dulu, supaya laporan memakai data terbaru.
+    pesanOk('Memperbarui data dari spreadsheet...');
+    const hasil = await api('POST', '/api/lapming/update');
+    const gagal = hasil.hasil.filter((h) => h.status !== 'berhasil');
+    if (gagal.length) throw new Error(`Gagal memperbarui ${gagal.map((h) => h.jenis.toUpperCase()).join(', ')}. Laporan tidak dibuat.`);
     const res = await fetch(`/api/lapming/laporan/${format}?${params()}`, { credentials: 'same-origin' });
     await unduh(res, `laporan-lapming.${format}`);
   } catch (e) {
