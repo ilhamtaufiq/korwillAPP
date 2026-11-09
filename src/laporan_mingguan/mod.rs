@@ -220,7 +220,7 @@ pub async fn unduh(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use calamine::{open_workbook_from_rs, Data, Reader, Xlsx};
+    use calamine::{open_workbook_from_rs, Data, Reader};
     use std::io::{Cursor, Read};
 
     fn baris(lpk: bool, nama: &str, desa: &str, pagu: f64) -> Row {
