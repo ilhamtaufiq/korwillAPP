@@ -164,6 +164,11 @@ fn keuangan(
             if let Some(kol) = b.pagu {
                 tulis(out, b.keu, format!("{kol}{rk}"), Nilai::Angka(x.pagu / 1000.0));
             }
+            // Identitas lokasi di Keuangan selalu merujuk ke Fisik & HOK (baris +2). Beberapa sel di template asli
+            // berisi angka contoh, bukan rumus; tanpa ini pagu dan persentase kosong di baris tersebut.
+            for kol in ["A", "B", "C", "D", "E", "F", "G"] {
+                tulis(out, b.keu, format!("{kol}{rk}"), Nilai::Rumus(format!("'{}'!{kol}{rf}", b.fisik)));
+            }
             if b.jenis == "san" {
                 // Template asli tidak punya rumus Jumlah RPDB-3; tanpa ini TOTAL tidak menghitung RPDB-3.
                 tulis(out, b.keu, format!("AK{rk}"), Nilai::Rumus(format!("SUM(AG{rk}:AJ{rk})")));
@@ -201,7 +206,9 @@ fn keuangan(
             let tgl_t = |no: &str| isian.and_then(|d| d.tahapan.get(no)).and_then(|v| tanggal(v));
             let tgl_t1 = tgl_t(&no_t1);
             let tgl_t2 = tgl_t(&no_t2);
-            let cair_t1 = tgl_t1.is_some() || x.rpdb_t.first().is_some_and(|v| v.is_some());
+            // Dana yang sudah dipakai (menurut Lapming) berarti Tahap I sudah cair.
+            let sudah_dipakai = x.aa > 0.0 || x.b.s + x.b.u + x.b.w > 0.0;
+            let cair_t1 = tgl_t1.is_some() || x.rpdb_t.first().is_some_and(|v| v.is_some()) || sudah_dipakai;
             let cair_t2 = tgl_t2.is_some();
             if let Some(d) = tgl_t1 {
                 tulis(out, b.keu, format!("{}{rk}", b.t1.0), Nilai::Tanggal(serial(d)));
@@ -334,9 +341,10 @@ pub fn susun(
     for sh in SHEET_DIPERIKSA {
         rumus.insert(sh, isi::sel_rumus(template, sh)?);
     }
-    out.retain(|(sheet, sel, _)| {
+    out.retain(|(sheet, sel, nilai)| {
         let ada = rumus.get(sheet.as_str()).is_some_and(|s| s.contains(sel));
-        if ada {
+        // Rumus yang ingin ditulis sudah ada di template: cukup lewati tanpa peringatan.
+        if ada && !matches!(nilai, Nilai::Rumus(_)) {
             peringatan.push(format!("{sheet}!{sel} berisi rumus di template, isian dilewati"));
         }
         !ada

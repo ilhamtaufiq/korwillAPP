@@ -6,7 +6,8 @@ use std::path::Path;
 
 use super::{calc, model::Dataset, read, xlsx};
 
-/// Pemakaian: lapming-cli --sanimas a.xlsx --lpk b.xlsx --korfas Ganthi [--sheet M9] [--tahap "Tahap 1"] [--out folder]
+/// Pemakaian: lapming-cli --sanimas a.xlsx --lpk b.xlsx --korfas Ganthi [--sheet M9] [--tahap "Tahap 1"] [--out folder] [--form]
+/// `--form` ikut menulis Form Laporan Mingguan (template resmi) ke folder `--out`, lewat jalur yang sama dengan server.
 pub fn jalankan(args: &[String]) -> anyhow::Result<()> {
     let mut san = None;
     let mut lpk = None;
@@ -14,6 +15,7 @@ pub fn jalankan(args: &[String]) -> anyhow::Result<()> {
     let mut sheet = None;
     let mut tahap = None;
     let mut out = None;
+    let mut form = false;
     let mut i = 0;
     while i < args.len() {
         let nilai = args.get(i + 1).cloned();
@@ -24,6 +26,11 @@ pub fn jalankan(args: &[String]) -> anyhow::Result<()> {
             "--sheet" => sheet = nilai,
             "--tahap" => tahap = nilai,
             "--out" => out = nilai,
+            "--form" => {
+                form = true;
+                i += 1;
+                continue;
+            }
             _ => {}
         }
         i += 2;
@@ -54,6 +61,19 @@ pub fn jalankan(args: &[String]) -> anyhow::Result<()> {
         let pp = Path::new(&folder).join(format!("Lapming Sanimas dan LPK - {korfas} - {sh}.pptx"));
         fs::write(&pp, pptx)?;
         println!("pptx: {}", pp.display());
+        if form {
+            let (isi, minggu) = crate::laporan_mingguan::bangun_dari_dataset(
+                &ds,
+                &korfas,
+                pilih,
+                &pokmas,
+                &crate::laporan_mingguan::store::FormData::default(),
+            )
+            .map_err(|e| anyhow::anyhow!(e))?;
+            let pf = Path::new(&folder).join(format!("Form Laporan Mingguan - {korfas} - M{minggu}.xlsx"));
+            fs::write(&pf, isi)?;
+            println!("form: {}", pf.display());
+        }
     }
     Ok(())
 }

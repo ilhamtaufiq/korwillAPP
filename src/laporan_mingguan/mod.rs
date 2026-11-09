@@ -156,6 +156,26 @@ pub fn bangun(
     Ok(isi)
 }
 
+/// Seluruh alur unduh dari data Lapming yang sudah dimuat: hitung minggu terpilih (sama dengan generate
+/// XLSX Lapming), riwayat M1..minggu untuk KURVA-S dan realisasi, lalu tulis ke template.
+/// Dipakai handler unduh dan perintah `lapming-cli --form`, supaya keduanya lewat jalur yang sama.
+pub fn bangun_dari_dataset(
+    ds: &crate::lapming::model::Dataset,
+    korwil: &str,
+    pilih: Option<u32>,
+    pokmas: &calc::DataPokmas,
+    form: &FormData,
+) -> Result<(Vec<u8>, u32), String> {
+    let lap = calc::susun(ds, korwil, pilih, None, pokmas)?;
+    let riwayat: Vec<(u32, Vec<Row>)> = calc::daftar_sheet(ds)
+        .into_iter()
+        .filter(|w| *w <= lap.week)
+        .map(|w| (w, calc::ambil(ds, w, Some(korwil), None)))
+        .collect();
+    let isi = bangun(&lap.rows, lap.week, korwil, form, pokmas, &riwayat)?;
+    Ok((isi, lap.week))
+}
+
 #[derive(Deserialize)]
 pub struct FormQuery {
     korwil: Option<String>,
@@ -205,15 +225,7 @@ pub async fn unduh(
     let form = store::muat(&st.db, &korwil).await?;
 
     let (isi, minggu) = tokio::task::spawn_blocking(move || -> Result<(Vec<u8>, u32), String> {
-        let lap = calc::susun(&ds, &korwil, pilih, None, &pokmas)?;
-        // Riwayat per minggu sampai minggu terpilih, untuk KURVA-S (rencana dan realisasi kumulatif per periode).
-        let riwayat: Vec<(u32, Vec<Row>)> = calc::daftar_sheet(&ds)
-            .into_iter()
-            .filter(|w| *w <= lap.week)
-            .map(|w| (w, calc::ambil(&ds, w, Some(&korwil), None)))
-            .collect();
-        let isi = bangun(&lap.rows, lap.week, &korwil, &form, &pokmas, &riwayat)?;
-        Ok((isi, lap.week))
+        bangun_dari_dataset(&ds, &korwil, pilih, &pokmas, &form)
     })
     .await
     .map_err(internal)?
