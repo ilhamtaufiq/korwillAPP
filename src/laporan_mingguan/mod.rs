@@ -132,7 +132,7 @@ pub fn bangun_dengan_peringatan(
 ) -> Result<(Vec<u8>, Vec<String>), String> {
     let periode = calc::periode_sheet(rows, minggu);
     let mut isian = susun_isian(rows, korwil, &periode)?;
-    let (tambahan, peringatan) = gen_isian::susun(rows, form, pokmas, TEMPLATE)?;
+    let (tambahan, peringatan) = gen_isian::susun(rows, form, pokmas, TEMPLATE, riwayat)?;
     isian.extend(tambahan);
     // KURVA-S ditulis ulang dulu (jumlah blok mengikuti jumlah lokasi), lalu sel lain diisi.
     let blok = kurva::dari_riwayat(rows, riwayat);
@@ -419,6 +419,50 @@ mod tests {
         assert!((angka("AI15") - 0.15).abs() < 1e-9, "realisasi AI15");
         assert_eq!(nilai(&mut wb, "KURVA-S", "B13"), "Bogor");
         assert_eq!(nilai(&mut wb, "KURVA-S", "D13"), "Pagelaran");
+    }
+
+    #[test]
+    fn keuangan_rpdb_realisasi_dan_penyaluran_dari_lapming() {
+        use crate::lapming::calc::{DataPokmas, TahapRpdb};
+        use crate::lapming::fmt::norm_nama;
+        let tgl = |m, d| chrono::NaiveDate::from_ymd_opt(2026, m, d).unwrap();
+        let mut x = baris(false, "Pokmas A", "Pagelaran", 400_000_000.0);
+        x.rpdb_t = vec![Some(128_000_000), Some(152_000_000)];
+        let mut pokmas = DataPokmas::default();
+        pokmas.rpdb.insert(
+            norm_nama("Pokmas A"),
+            vec![
+                TahapRpdb { jumlah: Some(128_000_000), tanggal: Some(tgl(9, 3)) },
+                TahapRpdb { jumlah: Some(152_000_000), tanggal: Some(tgl(10, 8)) },
+            ],
+        );
+        // Minggu 1 (berakhir 7 Sep) masuk RPDB-1; minggu 6 (berakhir 12 Okt) masuk RPDB-2.
+        let mut m1 = x.clone();
+        m1.u = 1_000_000.0;
+        m1.s = 500_000.0;
+        m1.w = 100_000.0;
+        let mut m6 = x.clone();
+        m6.u = 2_000_000.0;
+        m6.s = 300_000.0;
+        m6.w = 0.0;
+        let riwayat = vec![(1u32, vec![m1]), (6u32, vec![m6])];
+        let out = bangun(&[x], 6, "Ganthi", &FormData::default(), &pokmas, &riwayat).unwrap();
+        let mut wb = buka(&out);
+        let k = "Keuangan Sanimas";
+        assert_eq!(nilai(&mut wb, k, "P11"), "128000");
+        assert_eq!(nilai(&mut wb, k, "O11"), format!("{}", gen_isian::serial(tgl(9, 3))));
+        assert_eq!(nilai(&mut wb, k, "X11"), "152000");
+        assert_eq!(nilai(&mut wb, k, "Q11"), "1000");
+        assert_eq!(nilai(&mut wb, k, "S11"), "500");
+        assert_eq!(nilai(&mut wb, k, "T11"), "100");
+        assert_eq!(nilai(&mut wb, k, "Y11"), "2000");
+        assert_eq!(nilai(&mut wb, k, "AA11"), "300");
+        // Tahap I dianggap cair karena RPDB-1 ada: 70% dari pagu (Rp.000).
+        assert_eq!(nilai(&mut wb, "Fisik & HOK Sanimas", "M13"), "280000");
+        // Rumus Jumlah RPDB-3 yang hilang di template ditambahkan.
+        let mut xml = String::new();
+        zip::ZipArchive::new(Cursor::new(out)).unwrap().by_name("xl/worksheets/sheet11.xml").unwrap().read_to_string(&mut xml).unwrap();
+        assert!(xml.contains("<f>SUM(AG11:AJ11)</f>"));
     }
 
     /// Menulis contoh file untuk diperiksa di LibreOffice: `cargo test tulis_contoh -- --ignored`.

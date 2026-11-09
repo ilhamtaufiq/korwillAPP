@@ -12,6 +12,8 @@ pub enum Nilai {
     /// Nomor seri tanggal Excel (hari sejak 1899-12-30). Kalau style sel di template tidak berformat
     /// tanggal, sel diberi salinan style yang sama dengan format `dd-mm-yyyy` supaya tampil sebagai tanggal.
     Tanggal(f64),
+    /// Rumus Excel tanpa tanda "=" di depan. Nilainya dihitung Excel saat file dibuka.
+    Rumus(String),
 }
 
 /// (nama sheet, referensi sel seperti "C5", nilai)
@@ -55,6 +57,7 @@ fn sel_baru(r: &str, s_attr: &str, nilai: &Nilai) -> String {
             let a = if a.is_finite() { *a } else { 0.0 };
             format!(r#"<c r="{r}"{s_attr}><v>{a}</v></c>"#)
         }
+        Nilai::Rumus(f) => format!(r#"<c r="{r}"{s_attr}><f>{}</f></c>"#, xml_escape(f)),
     }
 }
 

@@ -85,8 +85,154 @@ fn kunci_row(x: &Row) -> String {
     )
 }
 
+/// Kolom realisasi penggunaan dana (material, upah, BOP) per RPDB-1..6. Alat tidak ada di Lapming.
+/// Letaknya sama di Keuangan Sanimas dan Keuangan LPK Swakelola.
+const REALISASI_KOLOM: [(&str, &str, &str); 6] =
+    [("Q", "S", "T"), ("Y", "AA", "AB"), ("AG", "AI", "AJ"), ("AO", "AQ", "AR"), ("AW", "AY", "AZ"), ("BE", "BG", "BH")];
+
+/// Nomor tahap (teks, 1-based) untuk kode kolom tahapan, mis. "X" -> "16" di Sanimas.
+fn no_tahap(kol: &[(&str, &str)], kode: &str) -> String {
+    kol.iter().position(|(k, _)| *k == kode).map(|i| (i + 1).to_string()).unwrap_or_default()
+}
+
+/// Penggunaan dana mingguan (material, upah, BOP dalam rupiah) dijumlahkan per RPDB. Minggu masuk ke RPDB
+/// terakhir yang tanggalnya tidak melewati akhir minggu itu; minggu sebelum RPDB pertama masuk ke RPDB-1.
+fn realisasi_per_rpdb(x: &Row, riwayat: &[(u32, Vec<Row>)], tanggal: &[Option<NaiveDate>]) -> Vec<[f64; 3]> {
+    let mut hasil = vec![[0.0; 3]; REALISASI_KOLOM.len()];
+    for (w, rows) in riwayat {
+        let Some(y) = rows.iter().find(|y| y.lpk == x.lpk && y.no == x.no) else { continue };
+        let akhir = super::kurva::akhir_minggu(*w);
+        let tahap = tanggal
+            .iter()
+            .enumerate()
+            .filter(|(_, d)| d.is_some_and(|d| d <= akhir))
+            .map(|(t, _)| t)
+            .last()
+            .unwrap_or(0)
+            .min(REALISASI_KOLOM.len() - 1);
+        hasil[tahap][0] += y.u;
+        hasil[tahap][1] += y.s;
+        hasil[tahap][2] += y.w;
+    }
+    hasil
+}
+
+/// Keuangan Sanimas dan LPK Swakelola, serta penyaluran dana di Fisik & HOK.
+#[allow(clippy::too_many_arguments)]
+fn keuangan(
+    out: &mut Vec<Isian>,
+    peringatan: &mut Vec<String>,
+    san: &[&Row],
+    lpk: &[&Row],
+    form: &FormData,
+    pokmas: &DataPokmas,
+    riwayat: &[(u32, Vec<Row>)],
+) {
+    struct Bagian<'a> {
+        jenis: &'a str,
+        daftar: &'a [&'a Row],
+        keu: &'a str,
+        fisik: &'a str,
+        tahap: &'a [(&'a str, &'a str)],
+        kode_t1: &'a str,
+        kode_t2: &'a str,
+        /// (kolom tanggal, kolom nilai bila isian) untuk Tahap I dan II di sheet Keuangan.
+        t1: (&'a str, Option<&'a str>),
+        t2: (&'a str, Option<&'a str>),
+        /// Kolom Tahap I dan II di Fisik & HOK.
+        fisik_t: (&'a str, &'a str),
+        /// Kolom pagu di sheet Keuangan bila berupa isian (LPK), None bila rumus (Sanimas).
+        pagu: Option<&'a str>,
+    }
+    let bagian = [
+        Bagian {
+            jenis: "san", daftar: san, keu: "Keuangan Sanimas", fisik: "Fisik & HOK Sanimas", tahap: &store::TAHAP_SAN,
+            kode_t1: "X", kode_t2: "AC", t1: ("H", None), t2: ("J", Some("K")), fisik_t: ("M", "N"), pagu: None,
+        },
+        Bagian {
+            jenis: "lpk", daftar: lpk, keu: "Keuangan LPK Swakelola", fisik: "Fisik & HOK LPK", tahap: &store::TAHAP_LPK,
+            kode_t1: "Y", kode_t2: "AC", t1: ("I", Some("J")), t2: ("K", Some("L")), fisik_t: ("N", "O"), pagu: Some("H"),
+        },
+    ];
+    let tulis = |out: &mut Vec<Isian>, sheet: &str, sel: String, n: Nilai| out.push((sheet.to_string(), sel, n));
+    for b in bagian {
+        let no_t1 = no_tahap(b.tahap, b.kode_t1);
+        let no_t2 = no_tahap(b.tahap, b.kode_t2);
+        for (i, x) in b.daftar.iter().enumerate() {
+            let rk = 11 + i;
+            let rf = 13 + i;
+            if let Some(kol) = b.pagu {
+                tulis(out, b.keu, format!("{kol}{rk}"), Nilai::Angka(x.pagu / 1000.0));
+            }
+            if b.jenis == "san" {
+                // Template asli tidak punya rumus Jumlah RPDB-3; tanpa ini TOTAL tidak menghitung RPDB-3.
+                tulis(out, b.keu, format!("AK{rk}"), Nilai::Rumus(format!("SUM(AG{rk}:AJ{rk})")));
+            }
+
+            // RPDB per tahap dari halaman Lapming.
+            let rpdb = pokmas.rpdb.get(&norm_nama(&x.nama));
+            if x.rpdb_t.len() > RPDB_KOLOM.len() {
+                peringatan.push(format!("RPDB '{}' punya {} tahap; hanya {} yang muat di form", x.nama, x.rpdb_t.len(), RPDB_KOLOM.len()));
+            }
+            let mut tgl_rpdb: Vec<Option<NaiveDate>> = Vec::new();
+            for (t, ((kol_tgl, kol_nilai), jumlah)) in RPDB_KOLOM.iter().zip(&x.rpdb_t).enumerate() {
+                let tgl = rpdb.and_then(|v| v.get(t)).and_then(|v| v.tanggal);
+                tgl_rpdb.push(if jumlah.is_some() { tgl } else { None });
+                let Some(jumlah) = jumlah else { continue };
+                tulis(out, b.keu, format!("{kol_nilai}{rk}"), Nilai::Angka(*jumlah as f64 / 1000.0));
+                if let Some(d) = tgl {
+                    tulis(out, b.keu, format!("{kol_tgl}{rk}"), Nilai::Tanggal(serial(d)));
+                }
+            }
+
+            // Realisasi penggunaan dana per RPDB dari data mingguan Lapming.
+            for (t, [material, upah, bop]) in realisasi_per_rpdb(x, riwayat, &tgl_rpdb).into_iter().enumerate() {
+                if material == 0.0 && upah == 0.0 && bop == 0.0 {
+                    continue;
+                }
+                let (km, ku, kb) = REALISASI_KOLOM[t];
+                tulis(out, b.keu, format!("{km}{rk}"), Nilai::Angka(material / 1000.0));
+                tulis(out, b.keu, format!("{ku}{rk}"), Nilai::Angka(upah / 1000.0));
+                tulis(out, b.keu, format!("{kb}{rk}"), Nilai::Angka(bop / 1000.0));
+            }
+
+            // Penyaluran Tahap I/II: tanggal dari isian tahapan; Tahap I juga dianggap cair bila RPDB-1 sudah ada.
+            let isian = form.lokasi.get(&(b.jenis.to_string(), kunci_row(x)));
+            let tgl_t = |no: &str| isian.and_then(|d| d.tahapan.get(no)).and_then(|v| tanggal(v));
+            let tgl_t1 = tgl_t(&no_t1);
+            let tgl_t2 = tgl_t(&no_t2);
+            let cair_t1 = tgl_t1.is_some() || x.rpdb_t.first().is_some_and(|v| v.is_some());
+            let cair_t2 = tgl_t2.is_some();
+            if let Some(d) = tgl_t1 {
+                tulis(out, b.keu, format!("{}{rk}", b.t1.0), Nilai::Tanggal(serial(d)));
+            }
+            if let Some(d) = tgl_t2 {
+                tulis(out, b.keu, format!("{}{rk}", b.t2.0), Nilai::Tanggal(serial(d)));
+            }
+            if cair_t1 {
+                tulis(out, b.fisik, format!("{}{rf}", b.fisik_t.0), Nilai::Angka(x.pagu * 0.7 / 1000.0));
+                if let Some(kol) = b.t1.1 {
+                    tulis(out, b.keu, format!("{kol}{rk}"), Nilai::Angka(x.pagu * 0.7 / 1000.0));
+                }
+            }
+            if cair_t2 {
+                tulis(out, b.fisik, format!("{}{rf}", b.fisik_t.1), Nilai::Angka(x.pagu * 0.3 / 1000.0));
+                if let Some(kol) = b.t2.1 {
+                    tulis(out, b.keu, format!("{kol}{rk}"), Nilai::Angka(x.pagu * 0.3 / 1000.0));
+                }
+            }
+        }
+    }
+}
+
 /// Isian dari data tersimpan dan RPDB, beserta peringatan (isian yang dilewati).
-pub fn susun(rows: &[Row], form: &FormData, pokmas: &DataPokmas, template: &[u8]) -> Result<(Vec<Isian>, Vec<String>), String> {
+pub fn susun(
+    rows: &[Row],
+    form: &FormData,
+    pokmas: &DataPokmas,
+    template: &[u8],
+    riwayat: &[(u32, Vec<Row>)],
+) -> Result<(Vec<Isian>, Vec<String>), String> {
     if form.partisipan.len() > KAPASITAS_PARTISIPAN {
         return Err(format!(
             "Jumlah baris Partisipan Masyarakat {} melebihi kapasitas form ({KAPASITAS_PARTISIPAN})",
@@ -146,21 +292,8 @@ pub fn susun(rows: &[Row], form: &FormData, pokmas: &DataPokmas, template: &[u8]
         }
     }
 
-    // Keuangan Sanimas: RPDB per tahap (Rp.1000) dan tanggalnya, baris 11+i.
-    for (i, x) in san.iter().enumerate() {
-        let r = 11 + i;
-        let tgl = pokmas.rpdb.get(&norm_nama(&x.nama));
-        if x.rpdb_t.len() > RPDB_KOLOM.len() {
-            peringatan.push(format!("RPDB '{}' punya {} tahap; hanya {} yang muat di form", x.nama, x.rpdb_t.len(), RPDB_KOLOM.len()));
-        }
-        for (t, ((kol_tgl, kol_nilai), jumlah)) in RPDB_KOLOM.iter().zip(&x.rpdb_t).enumerate() {
-            let Some(jumlah) = jumlah else { continue };
-            tulis(&mut out, "Keuangan Sanimas", format!("{kol_nilai}{r}"), Nilai::Angka(*jumlah as f64 / 1000.0));
-            if let Some(d) = tgl.and_then(|v| v.get(t)).and_then(|v| v.tanggal) {
-                tulis(&mut out, "Keuangan Sanimas", format!("{kol_tgl}{r}"), Nilai::Tanggal(serial(d)));
-            }
-        }
-    }
+    // Keuangan dan penyaluran dana: sama seperti laporan Lapming (M1 sampai minggu terpilih), beda format.
+    keuangan(&mut out, &mut peringatan, &san, &lpk, form, pokmas, riwayat);
 
     let tulis_baris = |out: &mut Vec<Isian>, peringatan: &mut Vec<String>, sheet: &str, baris: usize, peta: &BTreeMap<String, String>, kolom: &[(&str, &str)], nilai: &dyn Fn(&str, &str) -> Nilai| {
         let sah: HashSet<&str> = kolom.iter().map(|(k, _)| *k).collect();
