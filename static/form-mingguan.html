@@ -1,0 +1,400 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Form Mingguan | KorwilAPP</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"><link rel="icon" href="/img/favicon.png" type="image/png"><link rel="stylesheet" href="/css/app.css?v=6"><style>
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 20px; line-height: 1; display: inline-block; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+    #sidebar { position: fixed; left: 0; top: 0; height: 100%; width: 16rem; z-index: 50; display: none; flex-direction: column; justify-content: space-between; background: #fff; border-right: 1px solid #E2E8F0; transition: width .2s; overflow-y: auto; }
+    @media (min-width: 1024px) { #sidebar { display: flex; } }
+    body.sb-open #sidebar { display: flex; }
+    #topbar { position: fixed; top: 0; right: 0; left: 0; height: 4rem; z-index: 40; display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; background: #fff; border-bottom: 1px solid #E2E8F0; transition: left .2s; }
+    @media (min-width: 1024px) { #topbar { left: 16rem; } }
+    #page { padding-top: 4rem; transition: padding .2s; }
+    @media (min-width: 1024px) { #page { padding-left: 16rem; } }
+    body.sb-collapsed #sidebar { width: 4rem; }
+    @media (min-width: 1024px) { body.sb-collapsed #topbar { left: 4rem; } body.sb-collapsed #page { padding-left: 4rem; } }
+    body.sb-collapsed .nav-label, body.sb-collapsed .brand-text, body.sb-collapsed .section-label { display: none; }
+    body.sb-collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+  </style><script src="/app.js?v=6"></script><script src="/layout.js?v=6"></script></head><body class="bg-canvas font-sans text-ink min-h-screen"><aside id="sidebar"><div class="flex flex-col"><div class="flex h-16 items-center gap-3 border-b border-line px-4"><img src="/img/logo.png" alt="" class="h-8 w-8 shrink-0 rounded-lg"><div class="brand-text flex flex-col"><span class="text-sm font-bold leading-none">KorwilAPP</span><span class="text-xs text-ink3">Sanimas Wilayah</span></div></div><div class="p-4"><p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Menu Utama</p><nav class="flex flex-col gap-1"><a href="/" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Ringkasan Wilayah"><span class="material-symbols-outlined">grid_view</span><span class="nav-label">Ringkasan Wilayah</span></a><a href="/daftar-proyek.html" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Daftar Pekerjaan"><span class="material-symbols-outlined">construction</span><span class="nav-label">Daftar Pekerjaan</span></a><a href="/tambah-proyek.html" id="menu-tambah" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Tambah Pekerjaan"><span class="material-symbols-outlined">add_circle</span><span class="nav-label">Tambah Pekerjaan</span></a><a href="/users.html" id="menu-users" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Daftar User"><span class="material-symbols-outlined">group</span><span class="nav-label">Daftar User</span></a><a href="/log-dokumentasi.html" id="menu-log" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Log Dokumentasi"><span class="material-symbols-outlined">photo_camera</span><span class="nav-label">Log Dokumentasi</span></a><a href="/lapming.html" id="menu-lapming" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Laporan Lapming"><span class="material-symbols-outlined">monitoring</span><span class="nav-label">Laporan Lapming</span></a><a href="/form-mingguan.html" id="menu-form-mingguan" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold border-l-2 border-primary bg-primary-soft text-primary" title="Form Mingguan"><span class="material-symbols-outlined">description</span><span class="nav-label">Form Mingguan</span></a><a href="/anomali-data.html" id="menu-anomali" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Cek Anomali Data"><span class="material-symbols-outlined">rule</span><span class="nav-label">Cek Anomali Data</span></a><a href="/pengaturan.html" id="menu-pengaturan" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Pengaturan Sumber"><span class="material-symbols-outlined">settings</span><span class="nav-label">Pengaturan Sumber</span></a><a href="/progres-minggu.html" id="menu-progres-minggu" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Progres Lapming"><span class="material-symbols-outlined">query_stats</span><span class="nav-label">Progres Lapming</span></a></nav></div><div class="px-4 py-2"><p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Akun</p><nav class="flex flex-col gap-1"><a href="/ganti-sandi.html" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Ganti Kata Sandi"><span class="material-symbols-outlined">key</span><span class="nav-label">Ganti Kata Sandi</span></a></nav></div></div></aside><header id="topbar"><div class="flex items-center gap-3"><button id="sb-toggle" type="button" aria-label="Perkecil atau besarkan menu" class="flex h-11 w-11 items-center justify-center rounded-lg text-ink2 hover:bg-muted"><span class="material-symbols-outlined">menu</span></button><div class="hidden items-center gap-2 text-xs text-ink3 md:flex"><span class="material-symbols-outlined text-[16px]">map</span><span>Wilayah Operasional</span><span>/</span><span class="font-semibold text-ink">Korwil I - Jawa Barat</span></div></div><div class="flex items-center gap-3"><div class="flex flex-col text-right"><span id="user-name" class="text-sm font-semibold"></span><span id="user-role" class="text-xs text-ink3"></span></div><button onclick="logout()" class="h-9 rounded-lg border border-line px-3 text-sm font-semibold text-ink2 hover:bg-muted">Keluar</button></div></header><main id="page"><div class="mx-auto max-w-7xl px-4 pb-10 lg:px-6">
+<div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
+<div id="success-message" class="mb-4 hidden rounded-lg border border-primary bg-primary-soft px-3 py-2 text-sm text-primary"></div>
+<div class="mb-4 flex flex-col gap-1"><h1 class="text-xl font-bold">Form Mingguan</h1><p class="text-sm text-ink3">Isian tanggal tahapan, target, partisipan, dan permasalahan per korwil. Unduh hasilnya sebagai form XLSX.</p></div>
+<section class="mb-4 rounded-lg border border-line bg-white p-4"><div class="grid gap-3 sm:grid-cols-2">
+<div id="wrap-korwil" class="flex flex-col gap-1.5"><label class="text-sm font-semibold text-ink2" for="korwil">Korwil</label><select id="korwil" class="h-11 rounded-lg border border-line bg-white px-3 text-sm"></select></div>
+<div class="flex flex-col gap-1.5"><label class="text-sm font-semibold text-ink2" for="minggu">Minggu (untuk unduhan)</label><select id="minggu" class="h-11 rounded-lg border border-line bg-white px-3 text-sm"></select></div>
+</div></section>
+<div class="mb-4 flex overflow-x-auto border-b border-line" id="tabs" role="tablist"></div>
+<section id="panel" class="rounded-lg border border-line bg-white p-4"><div class="py-6 text-center text-sm text-ink3">Memuat data...</div></section>
+</div></main>
+<style>
+  .fm-wrap { max-width: 100%; }
+  .fm-table { border-collapse: separate; border-spacing: 0; font-size: .875rem; }
+  .fm-table th, .fm-table td { border-bottom: 1px solid #E2E8F0; padding: .5rem .5rem; vertical-align: middle; background: #fff; }
+  .fm-table th { background: #F1F5F9; font-weight: 600; color: #334155; text-align: left; white-space: nowrap; }
+  .fm-stk { position: sticky; left: 0; z-index: 2; min-width: 10rem; max-width: 12rem; box-shadow: 1px 0 0 #E2E8F0; }
+  .fm-table th.fm-stk { z-index: 3; }
+  .fm-tgl { width: 9.5rem; }
+  .fm-teks { width: 8rem; }
+  .fm-lebar { width: 14rem; min-height: 2.5rem; }
+  .fm-table input, .fm-table textarea { border: 1px solid #E2E8F0; border-radius: .5rem; padding: .25rem .5rem; background: #fff; }
+  .fm-table input { height: 2.5rem; }
+  .fm-table input:focus, .fm-table textarea:focus { outline: none; border-color: #059669; }
+</style>
+<script>
+const $ = (id) => document.getElementById(id);
+const errorBox = $('error-message');
+const successBox = $('success-message');
+const KUNCI_KORWIL = 'form-mingguan-korwil';
+const TABS = [
+  ['tahap-san', 'Tahapan Sanimas'], ['tahap-lpk', 'Tahapan LPK'], ['target', 'Target'],
+  ['partisipan', 'Partisipan'], ['permasalahan', 'Permasalahan'], ['impor', 'Impor'], ['unduh', 'Unduh'],
+];
+const st = {
+  peran: '', korwil: '', tab: 'tahap-san', targetJenis: 'san', data: null,
+  kotor: new Set(), kotorBaris: new Set(), status: {}, statusBaris: {}, hasilImpor: null,
+};
+
+function pesanDari(e) {
+  if (e instanceof TypeError) return 'Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi.';
+  return (e && e.message) || 'Permintaan gagal, coba lagi.';
+}
+function pesanOk(t) { hideError(errorBox); successBox.textContent = t; successBox.classList.remove('hidden'); }
+function pesanGagal(e) { successBox.classList.add('hidden'); showError(errorBox, typeof e === 'string' ? e : pesanDari(e)); }
+function bersih() { successBox.classList.add('hidden'); hideError(errorBox); }
+
+function isiSelect(el, nilai, kosongLabel, dipilih) {
+  el.innerHTML = (kosongLabel ? `<option value="">${esc(kosongLabel)}</option>` : '') +
+    nilai.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if (dipilih && nilai.includes(dipilih)) el.value = dipilih;
+}
+
+async function kirimBerkas(url, file) {
+  const res = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/octet-stream' }, body: file });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((data && data.error) || 'Permintaan gagal, coba lagi.');
+  return data;
+}
+
+async function unduh(res, namaCadangan) {
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error((data && data.error) || 'Form gagal dibuat.');
+  }
+  const cd = res.headers.get('Content-Disposition') || '';
+  const m = /filename="([^"]+)"/.exec(cd);
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = m ? m[1] : namaCadangan;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+const kuncilok = (l) => `${l.jenis}|${l.kunci}`;
+const kol = () => (st.data && st.data.kolom) || {};
+
+function lokasiIsi(key) {
+  const L = st.data.isi.lokasi;
+  if (!L[key]) L[key] = { tahapan: {}, target: {} };
+  if (!L[key].tahapan) L[key].tahapan = {};
+  if (!L[key].target) L[key].target = {};
+  return L[key];
+}
+
+// ---------- muat data ----------
+async function muat() {
+  const lama = st.data;
+  const q = st.korwil ? `?korwil=${encodeURIComponent(st.korwil)}` : '';
+  const d = await api('GET', `/api/form-mingguan${q}`);
+  d.isi = d.isi || {};
+  d.isi.lokasi = d.isi.lokasi || {};
+  d.isi.partisipan = d.isi.partisipan || [];
+  d.isi.permasalahan = d.isi.permasalahan || [];
+  // Pertahankan isian yang belum disimpan, kecuali ganti korwil.
+  if (lama && lama.korwil === d.korwil) {
+    st.kotor.forEach((k) => { if (lama.isi.lokasi[k]) d.isi.lokasi[k] = lama.isi.lokasi[k]; });
+    st.kotorBaris.forEach((b) => { d.isi[b] = lama.isi[b]; });
+  } else {
+    st.kotor.clear(); st.kotorBaris.clear(); st.status = {}; st.statusBaris = {};
+  }
+  st.data = d;
+  if (st.peran === 'korwil') st.korwil = d.korwil;
+}
+
+async function muatDanTampil() {
+  try { await muat(); } catch (e) { pesanGagal(e); }
+  tampil();
+}
+
+// ---------- tampilan ----------
+function tampilTab() {
+  $('tabs').innerHTML = TABS.map(([id, label]) => {
+    const aktif = id === st.tab;
+    return `<button type="button" role="tab" aria-selected="${aktif}" data-tab="${id}" class="min-h-11 whitespace-nowrap border-b-2 px-4 text-sm font-semibold ${aktif ? 'border-primary text-primary' : 'border-transparent text-ink3 hover:text-primary'}">${label}</button>`;
+  }).join('');
+}
+
+function badge(s) {
+  if (!s) return '';
+  if (s.t === 'ok') return '<span class="text-xs font-semibold text-primary">Tersimpan</span>';
+  if (s.t === 'err') return `<span class="text-xs font-semibold text-danger">Gagal: ${esc(s.msg)}</span>`;
+  if (s.t === 'wait') return '<span class="text-xs text-ink3">Menyimpan...</span>';
+  return '<span class="text-xs font-semibold text-warn">Belum disimpan</span>';
+}
+
+function tampil() {
+  tampilTab();
+  const p = $('panel');
+  if (!st.data) { p.innerHTML = '<div class="py-6 text-center text-sm text-ink3">Pilih korwil dulu.</div>'; return; }
+  if (st.tab === 'tahap-san') p.innerHTML = tabelLokasi('san', 'tahap');
+  else if (st.tab === 'tahap-lpk') p.innerHTML = tabelLokasi('lpk', 'tahap');
+  else if (st.tab === 'target') p.innerHTML = tabelLokasi(st.targetJenis, 'target');
+  else if (st.tab === 'partisipan' || st.tab === 'permasalahan') p.innerHTML = tabelBaris(st.tab);
+  else if (st.tab === 'impor') p.innerHTML = panelImpor();
+  else p.innerHTML = panelUnduh();
+}
+
+function tabelLokasi(jenis, mode) {
+  const kolom = (kol()[`${mode === 'tahap' ? 'tahap' : 'target'}_${jenis}`]) || [];
+  const daftar = (st.data.lokasi || []).filter((l) => l.jenis === jenis);
+  const judul = mode === 'tahap'
+    ? `Tahapan ${jenis === 'san' ? 'Sanimas' : 'LPK'}`
+    : `Target ${jenis === 'san' ? 'Sanimas' : 'LPK'}`;
+  let kepala = `<div class="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 class="font-semibold">${judul}</h2>`;
+  if (mode === 'target') {
+    kepala += `<div class="flex items-center gap-2"><label class="text-sm font-semibold text-ink2" for="jenis-target">Jenis</label><select id="jenis-target" class="h-11 rounded-lg border border-line bg-white px-3 text-sm"><option value="san"${jenis === 'san' ? ' selected' : ''}>Sanimas</option><option value="lpk"${jenis === 'lpk' ? ' selected' : ''}>LPK</option></select></div>`;
+  }
+  kepala += '</div>';
+  if (!daftar.length) return kepala + '<p class="py-6 text-center text-sm text-ink3">Belum ada lokasi untuk korwil ini.</p>';
+  const ket = mode === 'tahap'
+    ? '<p class="mb-3 text-xs text-ink3">Isi tanggal tiap tahap, lalu klik Simpan pada baris. Kosongkan tanggal untuk menghapusnya.</p>'
+    : '<p class="mb-3 text-xs text-ink3">Isian berupa teks bebas (misalnya Daratan atau -). Klik Simpan pada baris setelah mengubah.</p>';
+  const th = kolom.map(([, label]) => `<th>${esc(label)}</th>`).join('');
+  const baris = daftar.map((l) => {
+    const key = kuncilok(l);
+    const isi = lokasiIsi(key);
+    const sumber = mode === 'tahap' ? isi.tahapan : isi.target;
+    const sel = kolom.map(([kode]) => {
+      const v = sumber[kode] == null ? '' : sumber[kode];
+      return mode === 'tahap'
+        ? `<td><input type="date" class="fm-tgl" data-f="tahapan" data-kode="${esc(kode)}" value="${esc(v)}" aria-label="${esc(kode)}"></td>`
+        : `<td><input type="text" class="fm-teks" data-f="target" data-kode="${esc(kode)}" value="${esc(v)}" aria-label="${esc(kode)}"></td>`;
+    }).join('');
+    const s = st.status[key] || (st.kotor.has(key) ? { t: 'kotor' } : null);
+    return `<tr data-key="${esc(key)}"><td class="fm-stk"><div class="font-semibold">${esc(l.desa || l.nama || '-')}</div><div class="text-xs text-ink3">${esc([l.kec, l.kab].filter(Boolean).join(', '))}</div></td>${sel}<td class="whitespace-nowrap"><div class="flex items-center gap-2"><button type="button" data-simpan="${esc(key)}" class="h-10 rounded-lg bg-primary px-3 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Simpan</button><span data-st>${badge(s)}</span></div></td></tr>`;
+  }).join('');
+  return `${kepala}${ket}<div class="fm-wrap overflow-x-auto rounded-lg border border-line"><table class="fm-table"><thead><tr><th class="fm-stk">Desa / Kecamatan</th>${th}<th>Aksi</th></tr></thead><tbody>${baris}</tbody></table></div>`;
+}
+
+function tabelBaris(bagian) {
+  const kolom = kol()[bagian] || [];
+  const judul = bagian === 'partisipan' ? 'Partisipan' : 'Permasalahan';
+  const daftar = st.data.isi[bagian];
+  const th = kolom.map(([, label]) => `<th>${esc(label)}</th>`).join('');
+  const baris = daftar.map((b, i) => {
+    const sel = kolom.map(([kode]) => `<td><textarea rows="2" class="fm-lebar" data-f="baris" data-i="${i}" data-kode="${esc(kode)}" aria-label="${esc(kode)}">${esc(b[kode] == null ? '' : b[kode])}</textarea></td>`).join('');
+    return `<tr><td class="text-center text-ink3">${i + 1}</td>${sel}<td><button type="button" data-hapus="${i}" class="h-10 whitespace-nowrap rounded-lg border border-line bg-white px-3 text-sm font-semibold text-danger hover:bg-danger-soft">Hapus Baris</button></td></tr>`;
+  }).join('');
+  const s = st.statusBaris[bagian] || (st.kotorBaris.has(bagian) ? { t: 'kotor' } : null);
+  const isiTabel = daftar.length
+    ? `<div class="fm-wrap overflow-x-auto rounded-lg border border-line"><table class="fm-table"><thead><tr><th>No</th>${th}<th>Aksi</th></tr></thead><tbody>${baris}</tbody></table></div>`
+    : '<p class="py-6 text-center text-sm text-ink3">Belum ada baris. Klik Tambah Baris.</p>';
+  return `<div class="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 class="font-semibold">${judul}</h2><div class="flex flex-wrap items-center gap-2"><span id="st-baris">${badge(s)}</span><button type="button" id="btn-tambah" class="h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-primary">Tambah Baris</button><button type="button" id="btn-simpan-baris" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Simpan Daftar</button></div></div>
+<p class="mb-3 text-xs text-ink3">Simpan Daftar mengganti seluruh daftar ${judul.toLowerCase()} korwil ini dengan isi tabel di bawah.</p>${isiTabel}`;
+}
+
+function panelImpor() {
+  let hasil = '';
+  const r = st.hasilImpor;
+  if (r) {
+    hasil = `<div class="mt-4 rounded-lg border border-primary bg-primary-soft px-3 py-2 text-sm text-primary"><p class="font-semibold">Impor selesai</p><p>Lokasi diperbarui: ${esc(r.lokasi)}. Baris partisipan: ${esc(r.partisipan)}. Baris permasalahan: ${esc(r.permasalahan)}.</p></div>`;
+  }
+  return `<h2 class="mb-3 font-semibold">Impor Form (XLSX)</h2>
+<div class="rounded-lg border border-warn-line bg-warn-soft px-3 py-2 text-sm text-warn"><p class="font-semibold">Perhatian</p><p>Impor menimpa isian tahapan dan target pada lokasi yang sama, dan mengganti seluruh daftar partisipan dan permasalahan korwil ini. Isian yang belum disimpan di halaman ini juga akan hilang.</p></div>
+<div class="mt-4 flex flex-col gap-1.5"><label class="text-sm font-semibold text-ink2" for="berkas">File form (.xlsx)</label><input id="berkas" type="file" accept=".xlsx" class="text-sm"></div>
+<div class="mt-4"><button type="button" id="btn-impor" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Impor</button></div>${hasil}`;
+}
+
+function panelUnduh() {
+  return `<h2 class="mb-3 font-semibold">Unduh Form (XLSX)</h2>
+<p class="mb-4 text-sm text-ink3">Mengunduh form mingguan untuk korwil dan minggu yang dipilih di atas. Kalau minggu tidak dipilih, server memakai minggu otomatis.</p>
+<button type="button" id="btn-unduh" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Unduh Form</button>`;
+}
+
+// ---------- aksi ----------
+function setStatusBaris(tr, s) {
+  const el = tr && tr.querySelector('[data-st]');
+  if (el) el.innerHTML = badge(s);
+}
+
+async function simpanLokasi(key, tombol) {
+  bersih();
+  const [jenis, ...sisa] = key.split('|');
+  const kunci = sisa.join('|');
+  const isi = lokasiIsi(key);
+  const tr = tombol.closest('tr');
+  const tahapan = {};
+  ((kol()[`tahap_${jenis}`]) || []).forEach(([k]) => { tahapan[k] = isi.tahapan[k] || ''; });
+  const target = {};
+  ((kol()[`target_${jenis}`]) || []).forEach(([k]) => { target[k] = isi.target[k] == null ? '' : String(isi.target[k]); });
+  tombol.disabled = true;
+  setStatusBaris(tr, { t: 'wait' });
+  try {
+    await api('PUT', '/api/form-mingguan/lokasi', { korwil: st.data.korwil, jenis, kunci, tahapan, target });
+    st.kotor.delete(key);
+    st.status[key] = { t: 'ok' };
+    await muat();
+  } catch (e) {
+    st.status[key] = { t: 'err', msg: pesanDari(e) };
+    pesanGagal(e);
+  }
+  tampil();
+}
+
+async function simpanBaris(bagian, tombol) {
+  bersih();
+  const kolom = (kol()[bagian] || []).map(([k]) => k);
+  const daftar = st.data.isi[bagian].map((b) => {
+    const o = {};
+    kolom.forEach((k) => { o[k] = b[k] == null ? '' : String(b[k]); });
+    return o;
+  }).filter((o) => Object.values(o).some((v) => v.trim() !== ''));
+  tombol.disabled = true;
+  $('st-baris').innerHTML = badge({ t: 'wait' });
+  try {
+    await api('PUT', '/api/form-mingguan/baris', { korwil: st.data.korwil, bagian, daftar });
+    st.kotorBaris.delete(bagian);
+    st.statusBaris[bagian] = { t: 'ok' };
+    await muat();
+  } catch (e) {
+    st.statusBaris[bagian] = { t: 'err', msg: pesanDari(e) };
+    pesanGagal(e);
+  }
+  tampil();
+}
+
+async function impor(tombol) {
+  bersih();
+  const file = $('berkas').files[0];
+  if (!file) return pesanGagal('Pilih file .xlsx dulu.');
+  if (!st.korwil && st.peran !== 'korwil') return pesanGagal('Pilih korwil dulu.');
+  if (!confirm('Impor akan menimpa isian lokasi yang sama dan mengganti seluruh daftar partisipan dan permasalahan. Lanjutkan?')) return;
+  tombol.disabled = true;
+  try {
+    const r = await kirimBerkas(`/api/form-mingguan/impor?korwil=${encodeURIComponent(st.korwil)}`, file);
+    st.hasilImpor = r;
+    st.kotor.clear(); st.kotorBaris.clear(); st.status = {}; st.statusBaris = {};
+    await muat();
+    pesanOk('Impor selesai dan data sudah dimuat ulang.');
+  } catch (e) {
+    pesanGagal(e);
+  }
+  tampil();
+}
+
+async function unduhForm(tombol) {
+  bersih();
+  if (!st.data) return pesanGagal('Pilih korwil dulu.');
+  const p = new URLSearchParams({ korwil: st.data.korwil });
+  if ($('minggu').value) p.set('minggu', $('minggu').value);
+  tombol.disabled = true;
+  try {
+    const res = await fetch(`/api/lapming/form-mingguan?${p}`, { credentials: 'same-origin' });
+    await unduh(res, 'form-mingguan.xlsx');
+  } catch (e) {
+    pesanGagal(e);
+  } finally {
+    tombol.disabled = false;
+  }
+}
+
+// ---------- event ----------
+$('tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tab]');
+  if (!b) return;
+  st.tab = b.dataset.tab;
+  bersih();
+  tampil();
+});
+
+$('panel').addEventListener('input', (e) => {
+  const el = e.target;
+  const f = el.dataset && el.dataset.f;
+  if (!f) return;
+  if (f === 'baris') {
+    const bagian = st.tab;
+    st.data.isi[bagian][Number(el.dataset.i)][el.dataset.kode] = el.value;
+    st.kotorBaris.add(bagian);
+    delete st.statusBaris[bagian];
+    const s = $('st-baris');
+    if (s) s.innerHTML = badge({ t: 'kotor' });
+    return;
+  }
+  const tr = el.closest('tr');
+  const key = tr.dataset.key;
+  lokasiIsi(key)[f][el.dataset.kode] = el.value;
+  st.kotor.add(key);
+  delete st.status[key];
+  setStatusBaris(tr, { t: 'kotor' });
+});
+
+$('panel').addEventListener('change', (e) => {
+  if (e.target.id === 'jenis-target') { st.targetJenis = e.target.value; tampil(); }
+});
+
+$('panel').addEventListener('click', (e) => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  if (t.dataset.simpan) simpanLokasi(t.dataset.simpan, t);
+  else if (t.id === 'btn-tambah') {
+    const o = {};
+    (kol()[st.tab] || []).forEach(([k]) => { o[k] = ''; });
+    st.data.isi[st.tab].push(o);
+    st.kotorBaris.add(st.tab);
+    tampil();
+  } else if (t.dataset.hapus !== undefined) {
+    st.data.isi[st.tab].splice(Number(t.dataset.hapus), 1);
+    st.kotorBaris.add(st.tab);
+    delete st.statusBaris[st.tab];
+    tampil();
+  } else if (t.id === 'btn-simpan-baris') simpanBaris(st.tab, t);
+  else if (t.id === 'btn-impor') impor(t);
+  else if (t.id === 'btn-unduh') unduhForm(t);
+});
+
+$('korwil').addEventListener('change', async () => {
+  st.korwil = $('korwil').value;
+  try { localStorage.setItem(KUNCI_KORWIL, st.korwil); } catch (_) {}
+  st.data = null; st.hasilImpor = null;
+  bersih();
+  if (!st.korwil) return tampil();
+  $('panel').innerHTML = '<div class="py-6 text-center text-sm text-ink3">Memuat data...</div>';
+  await muatDanTampil();
+});
+
+document.addEventListener('DOMContentLoaded', async () => {
+  tampilTab();
+  try {
+    const user = await requireAuth();
+    if (user.role !== 'admin' && user.role !== 'korwil') {
+      location.href = '/';
+      return;
+    }
+    st.peran = user.role;
+    const info = await api('GET', '/api/lapming/info');
+    isiSelect($('minggu'), info.minggu || [], 'Otomatis (minggu terakhir)', '');
+    if (user.role === 'korwil') {
+      $('wrap-korwil').hidden = true;
+    } else {
+      let simpan = '';
+      try { simpan = localStorage.getItem(KUNCI_KORWIL) || ''; } catch (_) {}
+      const daftarKorwil = info.korfas || [];
+      isiSelect($('korwil'), daftarKorwil, 'Pilih korwil', simpan || daftarKorwil[0] || '');
+      st.korwil = $('korwil').value;
+      if (!st.korwil) { tampil(); return; }
+    }
+    await muatDanTampil();
+  } catch (e) {
+    if (e && e.message !== 'Belum login') pesanGagal(e);
+  }
+});
+</script>
+</body></html>
