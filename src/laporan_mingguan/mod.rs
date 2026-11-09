@@ -127,17 +127,25 @@ pub fn bangun_dengan_peringatan(
     korwil: &str,
     form: &FormData,
     pokmas: &calc::DataPokmas,
+    riwayat: &[(u32, Vec<Row>)],
 ) -> Result<(Vec<u8>, Vec<String>), String> {
     let periode = calc::periode_sheet(rows, minggu);
     let mut isian = susun_isian(rows, korwil, &periode)?;
-    let (tambahan, peringatan) = gen_isian::susun(rows, form, pokmas, TEMPLATE)?;
+    let (tambahan, peringatan) = gen_isian::susun(rows, form, pokmas, TEMPLATE, riwayat)?;
     isian.extend(tambahan);
     Ok((isi::isi_template(TEMPLATE, &isian)?, peringatan))
 }
 
 /// Membuat file xlsx dari template untuk satu korwil dan satu minggu. Peringatan dicatat ke log server.
-pub fn bangun(rows: &[Row], minggu: u32, korwil: &str, form: &FormData, pokmas: &calc::DataPokmas) -> Result<Vec<u8>, String> {
-    let (isi, peringatan) = bangun_dengan_peringatan(rows, minggu, korwil, form, pokmas)?;
+pub fn bangun(
+    rows: &[Row],
+    minggu: u32,
+    korwil: &str,
+    form: &FormData,
+    pokmas: &calc::DataPokmas,
+    riwayat: &[(u32, Vec<Row>)],
+) -> Result<Vec<u8>, String> {
+    let (isi, peringatan) = bangun_dengan_peringatan(rows, minggu, korwil, form, pokmas, riwayat)?;
     for p in &peringatan {
         eprintln!("Form mingguan {korwil} M{minggu}: {p}");
     }
@@ -194,7 +202,13 @@ pub async fn unduh(
 
     let (isi, minggu) = tokio::task::spawn_blocking(move || -> Result<(Vec<u8>, u32), String> {
         let lap = calc::susun(&ds, &korwil, pilih, None, &pokmas)?;
-        let isi = bangun(&lap.rows, lap.week, &korwil, &form, &pokmas)?;
+        // Riwayat per minggu sampai minggu terpilih, untuk KURVA-S (rencana dan realisasi kumulatif per periode).
+        let riwayat: Vec<(u32, Vec<Row>)> = calc::daftar_sheet(&ds)
+            .into_iter()
+            .filter(|w| *w <= lap.week)
+            .map(|w| (w, calc::ambil(&ds, w, Some(&korwil), None)))
+            .collect();
+        let isi = bangun(&lap.rows, lap.week, &korwil, &form, &pokmas, &riwayat)?;
         Ok((isi, lap.week))
     })
     .await
@@ -312,7 +326,7 @@ mod tests {
             baris(false, "", "Cimandala", 300_000_000.0),
             baris(true, "PP Daarul", "Tanjung Rasa", 250_000_000.0),
         ];
-        let out = bangun(&rows, 9, "Ganthi", &FormData::default(), &calc::DataPokmas::default()).unwrap();
+        let out = bangun(&rows, 9, "Ganthi", &FormData::default(), &calc::DataPokmas::default(), &[]).unwrap();
         let mut wb = buka(&out);
         // Sanimas: Tahapan baris 12+i, Fisik baris 13+i.
         assert_eq!(nilai(&mut wb, "Tahapan Sanimas", "E12"), "Pagelaran");
@@ -335,7 +349,7 @@ mod tests {
     #[test]
     fn melebihi_kapasitas_ditolak() {
         let rows: Vec<Row> = (0..51).map(|i| baris(false, "", &format!("Desa {i}"), 1.0)).collect();
-        assert!(bangun(&rows, 9, "Ganthi", &FormData::default(), &calc::DataPokmas::default()).unwrap_err().contains("melebihi kapasitas"));
+        assert!(bangun(&rows, 9, "Ganthi", &FormData::default(), &calc::DataPokmas::default(), &[]).unwrap_err().contains("melebihi kapasitas"));
     }
 
     #[test]
@@ -365,7 +379,7 @@ mod tests {
         form.partisipan.push(BTreeMap::from([("A".to_string(), "Sosialisasi".to_string()), ("J".to_string(), "12".to_string())]));
         form.permasalahan.push(BTreeMap::from([("B".to_string(), "Bogor".to_string()), ("G".to_string(), "Masalah tes".to_string())]));
 
-        let out = bangun(&rows, 9, "Ganthi", &form, &crate::lapming::calc::DataPokmas::default()).unwrap();
+        let out = bangun(&rows, 9, "Ganthi", &form, &crate::lapming::calc::DataPokmas::default(), &[]).unwrap();
         let mut wb = buka(&out);
         let serial = gen_isian::serial(chrono::NaiveDate::from_ymd_opt(2026, 7, 8).unwrap());
         assert_eq!(nilai(&mut wb, "Tahapan Sanimas", "I12"), format!("{serial}"));
@@ -381,6 +395,28 @@ mod tests {
         assert_eq!(nilai(&mut wb, "Permasalahan", "G10"), "Masalah tes");
     }
 
+    #[test]
+    fn kurva_s_mengisi_selisih_kumulatif_per_periode() {
+        let rows = vec![baris(false, "", "Pagelaran", 1.0)];
+        let mut minggu1 = baris(false, "", "Pagelaran", 1.0);
+        minggu1.ah = Some(0.1);
+        minggu1.ag = 0.05;
+        let mut minggu2 = baris(false, "", "Pagelaran", 1.0);
+        minggu2.ah = Some(0.3);
+        minggu2.ag = 0.2;
+        let riwayat = vec![(1u32, vec![minggu1]), (2u32, vec![minggu2])];
+        let out = bangun(&rows, 2, "Ganthi", &FormData::default(), &crate::lapming::calc::DataPokmas::default(), &riwayat).unwrap();
+        let mut wb = buka(&out);
+        let mut angka = |sel: &str| -> f64 { nilai(&mut wb, "KURVA-S", sel).parse().unwrap() };
+        // Periode ke-25 (AH) berakhir 10 Sep: minggu 1 sudah selesai. Periode ke-26 (AI) berakhir 17 Sep: minggu 2.
+        assert!((angka("AH13") - 0.1).abs() < 1e-9, "rencana AH13");
+        assert!((angka("AI13") - 0.2).abs() < 1e-9, "rencana AI13");
+        assert!((angka("AH15") - 0.05).abs() < 1e-9, "realisasi AH15");
+        assert!((angka("AI15") - 0.15).abs() < 1e-9, "realisasi AI15");
+        assert_eq!(nilai(&mut wb, "KURVA-S", "B13"), "Bogor");
+        assert_eq!(nilai(&mut wb, "KURVA-S", "D13"), "Pagelaran");
+    }
+
     /// Menulis contoh file untuk diperiksa di LibreOffice: `cargo test tulis_contoh -- --ignored`.
     #[test]
     #[ignore]
@@ -390,7 +426,7 @@ mod tests {
             baris(false, "", "Cimandala", 300_000_000.0),
             baris(true, "PP Daarul", "Tanjung Rasa", 250_000_000.0),
         ];
-        let out = bangun(&rows, 9, "Ganthi", &FormData::default(), &calc::DataPokmas::default()).unwrap();
+        let out = bangun(&rows, 9, "Ganthi", &FormData::default(), &calc::DataPokmas::default(), &[]).unwrap();
         let tujuan = std::env::var("CONTOH_OUT").unwrap_or_else(|_| "/tmp/contoh-form.xlsx".into());
         std::fs::write(tujuan, out).unwrap();
     }
