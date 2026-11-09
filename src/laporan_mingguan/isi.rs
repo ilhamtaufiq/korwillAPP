@@ -17,7 +17,7 @@ pub enum Nilai {
 /// (nama sheet, referensi sel seperti "C5", nilai)
 pub type Isian = (String, String, Nilai);
 
-fn xml_escape(s: &str) -> String {
+pub(super) fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 

@@ -85,92 +85,8 @@ fn kunci_row(x: &Row) -> String {
     )
 }
 
-/// Baris awal blok lokasi di KURVA-S (rencana; realisasi di +2). Blok 58 dan 84 adalah ringkasan, dilewati.
-const KURVA_BLOK: [u32; 13] = [13, 18, 23, 28, 33, 38, 43, 48, 53, 64, 69, 74, 79];
-/// Kolom periode KURVA-S: I..=AQ (35 periode mingguan).
-const KURVA_PERIODE: usize = 35;
-const KURVA_KOLOM_AWAL: u32 = 9;
-
-fn huruf_kolom(mut c: u32) -> String {
-    let mut out = String::new();
-    while c > 0 {
-        let sisa = (c - 1) % 26;
-        out.insert(0, (b'A' + sisa as u8) as char);
-        c = (c - 1) / 26;
-    }
-    out
-}
-
-/// Akhir periode KURVA-S ke-p (0-based): 19 Maret 2026, lalu tiap 7 hari.
-fn akhir_periode(p: usize) -> NaiveDate {
-    NaiveDate::from_ymd_opt(2026, 3, 19).unwrap() + chrono::Duration::days(7 * p as i64)
-}
-
-/// Akhir minggu Lapming ke-w: minggu 1 berakhir 7 September 2026.
-fn akhir_minggu(w: u32) -> NaiveDate {
-    NaiveDate::from_ymd_opt(2026, 9, 7).unwrap() + chrono::Duration::days(7 * (w as i64 - 1))
-}
-
-/// Nilai kumulatif (rencana, realisasi) satu lokasi pada akhir periode `p`, dari minggu Lapming terakhir yang selesai.
-fn kumulatif_pada(riwayat: &[(u32, Vec<Row>)], lpk: bool, no: &str, p: usize) -> (f64, f64) {
-    let batas = akhir_periode(p);
-    let mut terbaru: Option<(u32, f64, f64)> = None;
-    for (w, rows) in riwayat {
-        if akhir_minggu(*w) > batas {
-            continue;
-        }
-        if let Some(x) = rows.iter().find(|x| x.lpk == lpk && x.no == no) {
-            if terbaru.map_or(true, |(tw, _, _)| *w > tw) {
-                terbaru = Some((*w, x.ah.unwrap_or(0.0), x.ag));
-            }
-        }
-    }
-    terbaru.map(|(_, a, b)| (a, b)).unwrap_or((0.0, 0.0))
-}
-
-/// KURVA-S: tiap lokasi mengisi satu blok. Rumus di template menjumlahkan selisih per periode,
-/// jadi yang ditulis adalah selisih kumulatif antar periode.
-fn kurva_s(rows: &[Row], riwayat: &[(u32, Vec<Row>)]) -> (Vec<Isian>, Vec<String>) {
-    let mut out = Vec::new();
-    let mut peringatan = Vec::new();
-    if rows.len() > KURVA_BLOK.len() {
-        peringatan.push(format!(
-            "KURVA-S hanya muat {} lokasi; {} lokasi lain tidak ditulis",
-            KURVA_BLOK.len(),
-            rows.len() - KURVA_BLOK.len()
-        ));
-    }
-    for (i, x) in rows.iter().take(KURVA_BLOK.len()).enumerate() {
-        let awal = KURVA_BLOK[i];
-        let mut rencana_kum = Vec::with_capacity(KURVA_PERIODE);
-        let mut realisasi_kum = Vec::with_capacity(KURVA_PERIODE);
-        for p in 0..KURVA_PERIODE {
-            let (r, s) = kumulatif_pada(riwayat, x.lpk, &x.no, p);
-            rencana_kum.push(r);
-            realisasi_kum.push(s);
-        }
-        let selisih = |kum: &[f64]| -> Vec<f64> {
-            kum.iter().enumerate().map(|(p, v)| if p == 0 { *v } else { v - kum[p - 1] }).collect()
-        };
-        let tulis_blok = |out: &mut Vec<Isian>, baris: u32, nilai: &[f64]| {
-            for (p, v) in nilai.iter().enumerate() {
-                let kol = huruf_kolom(KURVA_KOLOM_AWAL + p as u32);
-                out.push(("KURVA-S".into(), format!("{kol}{baris}"), Nilai::Angka(*v)));
-            }
-        };
-        out.push(("KURVA-S".into(), format!("A{awal}"), Nilai::Angka((i + 1) as f64)));
-        out.push(("KURVA-S".into(), format!("B{awal}"), Nilai::Teks(x.kab.clone().unwrap_or_default())));
-        out.push(("KURVA-S".into(), format!("C{awal}"), Nilai::Teks(x.kec.clone().unwrap_or_default())));
-        out.push(("KURVA-S".into(), format!("D{awal}"), Nilai::Teks(x.desa.clone())));
-        out.push(("KURVA-S".into(), format!("E{awal}"), Nilai::Teks(x.nama.clone())));
-        tulis_blok(&mut out, awal, &selisih(&rencana_kum));
-        tulis_blok(&mut out, awal + 2, &selisih(&realisasi_kum));
-    }
-    (out, peringatan)
-}
-
 /// Isian dari data tersimpan dan RPDB, beserta peringatan (isian yang dilewati).
-pub fn susun(rows: &[Row], form: &FormData, pokmas: &DataPokmas, template: &[u8], riwayat: &[(u32, Vec<Row>)]) -> Result<(Vec<Isian>, Vec<String>), String> {
+pub fn susun(rows: &[Row], form: &FormData, pokmas: &DataPokmas, template: &[u8]) -> Result<(Vec<Isian>, Vec<String>), String> {
     if form.partisipan.len() > KAPASITAS_PARTISIPAN {
         return Err(format!(
             "Jumlah baris Partisipan Masyarakat {} melebihi kapasitas form ({KAPASITAS_PARTISIPAN})",
@@ -292,9 +208,6 @@ pub fn susun(rows: &[Row], form: &FormData, pokmas: &DataPokmas, template: &[u8]
         }
         !ada
     });
-    let (kurva, peringatan_kurva) = kurva_s(rows, riwayat);
-    out.extend(kurva);
-    peringatan.extend(peringatan_kurva);
     Ok((out, peringatan))
 }
 

@@ -6,6 +6,7 @@ pub mod api;
 mod gen_isian;
 pub mod impor;
 mod isi;
+mod kurva;
 pub mod store;
 
 use axum::{
@@ -131,9 +132,12 @@ pub fn bangun_dengan_peringatan(
 ) -> Result<(Vec<u8>, Vec<String>), String> {
     let periode = calc::periode_sheet(rows, minggu);
     let mut isian = susun_isian(rows, korwil, &periode)?;
-    let (tambahan, peringatan) = gen_isian::susun(rows, form, pokmas, TEMPLATE, riwayat)?;
+    let (tambahan, peringatan) = gen_isian::susun(rows, form, pokmas, TEMPLATE)?;
     isian.extend(tambahan);
-    Ok((isi::isi_template(TEMPLATE, &isian)?, peringatan))
+    // KURVA-S ditulis ulang dulu (jumlah blok mengikuti jumlah lokasi), lalu sel lain diisi.
+    let blok = kurva::dari_riwayat(rows, riwayat);
+    let template = kurva::tulis(TEMPLATE, &blok)?;
+    Ok((isi::isi_template(&template, &isian)?, peringatan))
 }
 
 /// Membuat file xlsx dari template untuk satu korwil dan satu minggu. Peringatan dicatat ke log server.
