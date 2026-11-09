@@ -4,6 +4,8 @@ WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY migrations ./migrations
+# Template Form Mingguan ditanam ke binary lewat include_bytes!, jadi harus ada saat compile.
+COPY templates ./templates
 RUN cargo build --release
 
 # Tahap 2: image runtime kecil. Hanya binary dan folder static yang dibawa.
