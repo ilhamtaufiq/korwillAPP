@@ -3,7 +3,7 @@
 //!
 //! Kontrak (dipakai oleh API, impor, dan generator):
 //! - Lokasi dikenali dengan `kunci_lokasi(kab, kec, desa, tahap, nama)`. Nama hanya dipakai untuk LPK.
-//! - Tahapan: kunci nomor tahap ("1".."27" untuk Sanimas, "1".."24" untuk LPK), nilai "YYYY-MM-DD".
+//! - Tahapan: kunci nomor tahap ("1".."27" untuk Sanimas, "1".."28" untuk LPK), nilai "YYYY-MM-DD".
 //! - Target: kunci huruf kolom template ("G", "H", ...), nilai teks apa adanya (angka tetap ditulis sebagai teks).
 //! - Partisipan dan permasalahan: satu baris = peta kolom huruf -> nilai teks.
 
