@@ -3,10 +3,10 @@
   "private": true,
   "description": "Frontend KorwilAPP: halaman Astro di web/, hasil build di static/.",
   "scripts": {
-    "build:css": "tailwindcss -i ./styles/input.css -o ./web/public/css/app.css --minify",
+    "build:css": "tailwindcss -i ./styles/input.css -o ./static/css/app.css --minify",
     "build": "npm run build:css && astro build",
     "dev": "astro dev",
-    "watch:css": "tailwindcss -i ./styles/input.css -o ./web/public/css/app.css --watch"
+    "watch:css": "tailwindcss -i ./styles/input.css -o ./static/css/app.css --watch"
   },
   "devDependencies": {
     "tailwindcss": "3.4.17"
