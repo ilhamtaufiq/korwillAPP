@@ -297,8 +297,14 @@ async function unduhForm(tombol) {
   if ($('minggu').value) p.set('minggu', $('minggu').value);
   tombol.disabled = true;
   try {
+    // Sama seperti tombol di halaman Lapming: ambil data terbaru dari Google Spreadsheet dulu.
+    pesanOk('Memperbarui data dari spreadsheet...');
+    const hasil = await api('POST', '/api/lapming/update');
+    const gagal = hasil.hasil.filter((h) => h.status !== 'berhasil');
+    if (gagal.length) throw new Error(`Gagal memperbarui ${gagal.map((h) => h.jenis.toUpperCase()).join(', ')}. Form tidak dibuat.`);
     const res = await fetch(`/api/lapming/form-mingguan?${p}`, { credentials: 'same-origin' });
     await unduh(res, 'form-mingguan.xlsx');
+    bersih();
   } catch (e) {
     pesanGagal(e);
   } finally {
