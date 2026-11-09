@@ -33,7 +33,7 @@ const LOG_BATAS: usize = 5000;
 const PER_HALAMAN: usize = 50;
 
 /// Laporan Lapming untuk admin dan korwil.
-fn butuh_lapming(user: &User) -> Result<(), AppError> {
+pub(crate) fn butuh_lapming(user: &User) -> Result<(), AppError> {
     if user.role == "admin" || user.role == "korwil" {
         Ok(())
     } else {
@@ -50,7 +50,7 @@ fn jenis_kode(lpk: bool) -> &'static str {
 }
 
 /// Membaca semua data mingguan dari database menjadi Dataset.
-async fn muat_dataset(db: &MySqlPool) -> Result<Dataset, AppError> {
+pub(crate) async fn muat_dataset(db: &MySqlPool) -> Result<Dataset, AppError> {
     let sheets: Vec<(String, String)> = sqlx::query_as("SELECT CAST(jenis AS CHAR), nama FROM lapming_sheet")
         .fetch_all(db)
         .await?;
@@ -84,7 +84,7 @@ async fn muat_dataset(db: &MySqlPool) -> Result<Dataset, AppError> {
 }
 
 /// Alias nama dan RPDB dari database.
-async fn muat_pokmas(db: &MySqlPool) -> Result<DataPokmas, AppError> {
+pub(crate) async fn muat_pokmas(db: &MySqlPool) -> Result<DataPokmas, AppError> {
     let alias: Vec<(String, String)> = sqlx::query_as("SELECT nama_norm, nama_baku FROM lapming_alias")
         .fetch_all(db)
         .await?;
