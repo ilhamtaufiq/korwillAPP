@@ -42,10 +42,6 @@ pub fn huruf_kolom(mut c: u32) -> String {
     out
 }
 
-fn indeks_kolom(huruf: &str) -> u32 {
-    huruf.bytes().fold(0, |n, b| n * 26 + (b - b'A' + 1) as u32)
-}
-
 /// Akhir periode KURVA-S ke-p (0-based): 19 Maret 2026, lalu tiap 7 hari.
 pub fn akhir_periode(p: usize) -> NaiveDate {
     NaiveDate::from_ymd_opt(2026, 3, 19).unwrap() + chrono::Duration::days(7 * p as i64)
@@ -284,7 +280,6 @@ mod tests {
     fn huruf_kolom_dan_indeksnya_cocok() {
         assert_eq!(huruf_kolom(9), "I");
         assert_eq!(huruf_kolom(43), "AQ");
-        assert_eq!(indeks_kolom("AQ"), 43);
     }
 
     #[test]
