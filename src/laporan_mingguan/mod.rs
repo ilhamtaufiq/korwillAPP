@@ -4,6 +4,7 @@
 
 pub mod api;
 mod gen_isian;
+mod hitung;
 pub mod impor;
 mod isi;
 mod kurva;
@@ -132,12 +133,22 @@ pub fn bangun_dengan_peringatan(
 ) -> Result<(Vec<u8>, Vec<String>), String> {
     let periode = calc::periode_sheet(rows, minggu);
     let mut isian = susun_isian(rows, korwil, &periode)?;
-    let (tambahan, peringatan) = gen_isian::susun(rows, form, pokmas, TEMPLATE, riwayat)?;
+    let (tambahan, mut peringatan) = gen_isian::susun(rows, form, pokmas, TEMPLATE, riwayat)?;
     isian.extend(tambahan);
     // KURVA-S ditulis ulang dulu (jumlah blok mengikuti jumlah lokasi), lalu sel lain diisi.
     let blok = kurva::dari_riwayat(rows, riwayat);
     let template = kurva::tulis(TEMPLATE, &blok)?;
-    Ok((isi::isi_template(&template, &isian)?, peringatan))
+    let hasil = isi::isi_template(&template, &isian)?;
+    // Simpan nilai rumus di file supaya tampil juga di penampil yang tidak menghitung ulang.
+    // Kalau perhitungan gagal, file tetap dikirim; Excel menghitung ulang saat dibuka.
+    let hasil = match hitung::isi_nilai_rumus(&hasil) {
+        Ok(b) => b,
+        Err(e) => {
+            peringatan.push(format!("Nilai rumus tidak disimpan: {e}"));
+            hasil
+        }
+    };
+    Ok((hasil, peringatan))
 }
 
 /// Membuat file xlsx dari template untuk satu korwil dan satu minggu. Peringatan dicatat ke log server.
@@ -360,6 +371,14 @@ mod tests {
         assert_eq!(nilai(&mut wb, "Fisik & HOK LPK", "U13"), "12");
         // Header periode dan korwil.
         assert_eq!(nilai(&mut wb, "Tahapan Sanimas", "C5"), "Ganthi");
+        // Nilai rumus tersimpan di file: link antar sheet, penjumlahan, dan selisih terbaca tanpa menghitung ulang.
+        assert_eq!(nilai(&mut wb, "Fisik & HOK Sanimas", "E13"), "Pagelaran");
+        assert_eq!(nilai(&mut wb, "Fisik & HOK Sanimas", "AB13"), "94.725");
+        assert_eq!(nilai(&mut wb, "Fisik & HOK Sanimas", "V13"), "12");
+        assert_eq!(nilai(&mut wb, "Target Sanimas", "E10"), "Pagelaran");
+        assert_eq!(nilai(&mut wb, "Keuangan Sanimas", "G11"), "400000");
+        assert_eq!(nilai(&mut wb, "Keuangan Sanimas", "I11"), "280000");
+        assert_eq!(nilai(&mut wb, "Fisik & HOK LPK", "F13"), "PP Daarul");
     }
 
     #[test]

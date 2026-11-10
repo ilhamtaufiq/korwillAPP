@@ -23,12 +23,12 @@ pub(super) fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
-fn xml_unescape(s: &str) -> String {
+pub(super) fn xml_unescape(s: &str) -> String {
     s.replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'").replace("&amp;", "&")
 }
 
 /// Path XML sheet di dalam zip, dicocokkan dari nama sheet di workbook.xml dan relasinya.
-fn peta_sheet(wb: &str, rels: &str) -> Result<HashMap<String, String>, String> {
+pub(super) fn peta_sheet(wb: &str, rels: &str) -> Result<HashMap<String, String>, String> {
     let re_sheet = Regex::new(r#"<sheet [^>]*?name="([^"]*)"[^>]*?r:id="([^"]*)""#).unwrap();
     let re_rel = Regex::new(r#"<Relationship [^>]*?Id="([^"]*)"[^>]*?Target="([^"]*)""#).unwrap();
     let mut target: HashMap<&str, &str> = HashMap::new();
