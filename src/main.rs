@@ -118,6 +118,7 @@ fn router(state: AppState) -> Router {
         .route("/api/lapming/form-mingguan", get(laporan_mingguan::unduh))
         .route("/api/checklist", get(checklist::daftar))
         .route("/api/checklist/centang", put(checklist::centang))
+        .route("/api/checklist/keterangan", put(checklist::keterangan))
         .route("/api/form-mingguan", get(laporan_mingguan::api::daftar))
         .route("/api/form-mingguan/lokasi", put(laporan_mingguan::api::simpan_lokasi))
         .route("/api/form-mingguan/baris", put(laporan_mingguan::api::simpan_baris))

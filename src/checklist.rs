@@ -23,12 +23,16 @@ use crate::{
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Info {
     pub no: String,
+    pub jenis: String,
     pub tahap: String,
     pub kab: String,
     pub kec: String,
     pub desa: String,
     pub nama: String,
     pub korfas: String,
+    /// Nama FM Teknik dan FM Pemberdayaan dari data proyek yang lokasinya sama (bila ada).
+    pub fm_teknik: String,
+    pub fm_pemberdayaan: String,
 }
 
 /// Kunci pokmas yang stabil: kabupaten, kecamatan, desa, dan nama pokmas (huruf kecil, tanpa spasi berlebih).
@@ -41,7 +45,7 @@ fn pokmas_korwil(ds: &Dataset, korwil: &str) -> Vec<Info> {
     let kunci_korwil = norm_nama(korwil);
     let mut sudah: HashSet<String> = HashSet::new();
     let mut out = Vec::new();
-    for (_lpk, b) in ds.books() {
+    for (lpk, b) in ds.books() {
         for rows in b.sheets.values() {
             for x in rows.iter().filter(|x| norm_nama(&x.korfas) == kunci_korwil) {
                 let kab = x.kab.clone().unwrap_or_default();
@@ -50,12 +54,15 @@ fn pokmas_korwil(ds: &Dataset, korwil: &str) -> Vec<Info> {
                 if sudah.insert(kunci) {
                     out.push(Info {
                         no: x.no.clone(),
+                        jenis: if lpk { "LPK".into() } else { "Sanimas".into() },
                         tahap: x.tahap.clone().unwrap_or_default(),
                         kab,
                         kec,
                         desa: x.desa.clone(),
                         nama: x.nama.clone(),
                         korfas: x.korfas.clone(),
+                        fm_teknik: String::new(),
+                        fm_pemberdayaan: String::new(),
                     });
                 }
             }
@@ -69,28 +76,52 @@ pub struct KorwilQuery {
     korwil: Option<String>,
 }
 
-/// Pokmas korwil yang login (admin: korwil dari query) beserta ceklis yang sudah tersimpan.
+/// Pokmas korwil yang login (admin: korwil dari query) beserta ceklis dan keterangan yang sudah tersimpan.
 pub async fn daftar(State(st): State<AppState>, session: Session, Query(q): Query<KorwilQuery>) -> Result<Json<Value>, AppError> {
     let user = current_user(&session, &st.db).await?;
     lap_api::butuh_lapming(&user)?;
     let ds = lap_api::muat_dataset(&st.db).await?;
     let korwil = korwil_izin(&st, &user, &ds, q.korwil.as_deref()).await?;
 
-    let tersimpan: Vec<(String, String)> = sqlx::query_as("SELECT kunci, centang FROM checklist_pokmas WHERE korwil = ?")
-        .bind(&korwil)
-        .fetch_all(&st.db)
-        .await?;
-    let tersimpan: BTreeMap<String, BTreeMap<String, String>> = tersimpan
+    let tersimpan: Vec<(String, String, Option<String>)> =
+        sqlx::query_as("SELECT kunci, centang, keterangan FROM checklist_pokmas WHERE korwil = ?")
+            .bind(&korwil)
+            .fetch_all(&st.db)
+            .await?;
+    let tersimpan: BTreeMap<String, (BTreeMap<String, String>, BTreeMap<String, String>)> = tersimpan
         .into_iter()
-        .map(|(k, c)| (k, serde_json::from_str(&c).unwrap_or_default()))
+        .map(|(k, c, ket)| {
+            (
+                k,
+                (
+                    serde_json::from_str(&c).unwrap_or_default(),
+                    ket.and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default(),
+                ),
+            )
+        })
         .collect();
+
+    // Nama FM dari data proyek, dicocokkan lewat kabupaten, kecamatan, dan desa.
+    let proyek: Vec<(String, String, String, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT kabupaten, kecamatan, desa, tfl_nama, fm_pemberdayaan_nama FROM projects WHERE deleted_at IS NULL",
+    )
+    .fetch_all(&st.db)
+    .await?;
+    let mut fm: BTreeMap<String, (String, String)> = BTreeMap::new();
+    for (kab, kec, desa, teknik, pemberdayaan) in proyek {
+        fm.entry(kunci_pokmas(&kab, &kec, &desa, "")).or_insert((teknik.unwrap_or_default(), pemberdayaan.unwrap_or_default()));
+    }
 
     let pokmas: Vec<Value> = pokmas_korwil(&ds, &korwil)
         .into_iter()
-        .map(|info| {
+        .map(|mut info| {
             let kunci = kunci_pokmas(&info.kab, &info.kec, &info.desa, &info.nama);
-            let centang = tersimpan.get(&kunci).cloned().unwrap_or_default();
-            json!({ "kunci": kunci, "info": info, "centang": centang })
+            if let Some((t, p)) = fm.get(&kunci_pokmas(&info.kab, &info.kec, &info.desa, "")) {
+                info.fm_teknik = t.clone();
+                info.fm_pemberdayaan = p.clone();
+            }
+            let (centang, keterangan) = tersimpan.get(&kunci).cloned().unwrap_or_default();
+            json!({ "kunci": kunci, "info": info, "centang": centang, "keterangan": keterangan })
         })
         .collect();
 
@@ -175,4 +206,54 @@ mod tests {
         assert!(daftar.iter().any(|p| p.nama == "Sugema Jaya" && p.desa == "Cibarusah Jaya"));
         assert!(pokmas_korwil(&ds, "Tidak Ada").is_empty());
     }
+}
+
+#[derive(Deserialize)]
+pub struct KeteranganIn {
+    korwil: Option<String>,
+    kunci: String,
+    kode: String,
+    teks: String,
+}
+
+/// Menyimpan keterangan satu item berkas. Teks kosong menghapus keterangan.
+pub async fn keterangan(State(st): State<AppState>, session: Session, Json(body): Json<KeteranganIn>) -> Result<Json<Value>, AppError> {
+    let user = current_user(&session, &st.db).await?;
+    lap_api::butuh_lapming(&user)?;
+    if !BERKAS.iter().any(|(k, _, _)| *k == body.kode) {
+        return Err(AppError::BadRequest(format!("Kode berkas tidak dikenal: {}", body.kode)));
+    }
+    if body.teks.chars().count() > 500 {
+        return Err(AppError::BadRequest("Keterangan maksimal 500 karakter".into()));
+    }
+    let ds = lap_api::muat_dataset(&st.db).await?;
+    let korwil = korwil_izin(&st, &user, &ds, body.korwil.as_deref()).await?;
+    let ada = pokmas_korwil(&ds, &korwil)
+        .iter()
+        .any(|i| kunci_pokmas(&i.kab, &i.kec, &i.desa, &i.nama) == body.kunci);
+    if !ada {
+        return Err(AppError::NotFound);
+    }
+    let lama: Option<Option<String>> = sqlx::query_scalar("SELECT keterangan FROM checklist_pokmas WHERE korwil = ? AND kunci = ?")
+        .bind(&korwil)
+        .bind(&body.kunci)
+        .fetch_optional(&st.db)
+        .await?;
+    let mut ket: BTreeMap<String, String> = lama.flatten().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+    let teks = body.teks.trim();
+    if teks.is_empty() {
+        ket.remove(&body.kode);
+    } else {
+        ket.insert(body.kode.clone(), teks.to_string());
+    }
+    sqlx::query(
+        "INSERT INTO checklist_pokmas (korwil, kunci, centang, keterangan) VALUES (?, ?, '{}', ?) \
+         ON DUPLICATE KEY UPDATE keterangan = VALUES(keterangan)",
+    )
+    .bind(&korwil)
+    .bind(&body.kunci)
+    .bind(serde_json::to_string(&ket).map_err(|e| AppError::BadRequest(e.to_string()))?)
+    .execute(&st.db)
+    .await?;
+    Ok(Json(json!({ "ok": true, "keterangan": ket })))
 }
