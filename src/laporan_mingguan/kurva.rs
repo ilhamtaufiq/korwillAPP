@@ -238,6 +238,10 @@ pub fn tulis(template: &[u8], blok: &[Blok], kalender: &[(NaiveDate, NaiveDate)]
     let mut merge: Vec<String> = Vec::new();
     let jumlah = blok.len() as u32;
     let kol_periode: Vec<String> = (0..PERIODE as u32).map(|p| huruf_kolom(KOL_PERIODE_AWAL + p)).collect();
+    // Minggu yang belum punya data di lokasi mana pun: kumulatif, deviasi, dan rata-rata dibiarkan kosong.
+    let ada_data: Vec<bool> = (0..PERIODE)
+        .map(|p| blok.iter().any(|b| b.rencana.get(p).copied().flatten().is_some()))
+        .collect();
     for (k, b) in blok.iter().enumerate() {
         let base = BARIS_AWAL + TINGGI_BLOK * k as u32;
         for off in 0..TINGGI_BLOK {
@@ -254,6 +258,10 @@ pub fn tulis(template: &[u8], blok: &[Blok], kalender: &[(NaiveDate, NaiveDate)]
                 ("H".into(), match off { 0 => Isi::Teks("RENCANA".into()), 2 => Isi::Teks("REALISASI".into()), 4 => Isi::Teks("DEVIASI".into()), _ => Isi::Kosong }),
             ];
             for (p, kol) in kol_periode.iter().enumerate() {
+                if !ada_data[p] && off != 0 && off != 2 {
+                    kolom.push((kol.clone(), Isi::Kosong));
+                    continue;
+                }
                 let isi = match off {
                     0 => b.rencana.get(p).copied().flatten().map(Isi::Angka).unwrap_or(Isi::Kosong),
                     2 => b.realisasi.get(p).copied().flatten().map(Isi::Angka).unwrap_or(Isi::Kosong),
@@ -292,7 +300,11 @@ pub fn tulis(template: &[u8], blok: &[Blok], kalender: &[(NaiveDate, NaiveDate)]
                 sel_baris.push(sel(&gaya, off, kol, baris, &Isi::Kosong));
             }
             sel_baris.push(sel(&gaya, off, "H", baris, &label.map(|t| Isi::Teks(t.into())).unwrap_or(Isi::Kosong)));
-            for kol in &kol_periode {
+            for (p, kol) in kol_periode.iter().enumerate() {
+                if !ada_data[p] {
+                    sel_baris.push(sel(&gaya, off, kol, baris, &Isi::Kosong));
+                    continue;
+                }
                 let isi = match off {
                     0 => Isi::Rumus(rata(kol, 0)),
                     1 => Isi::Rumus(rata(kol, 1)),
