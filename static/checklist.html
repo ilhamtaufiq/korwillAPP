@@ -1,0 +1,243 @@
+<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Checklist Berkas | KorwilAPP</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"><link rel="icon" href="/img/favicon.png" type="image/png"><link rel="stylesheet" href="/css/app.css?v=6"><style>
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 20px; line-height: 1; display: inline-block; font-feature-settings: 'liga'; -webkit-font-smoothing: antialiased; }
+    #sidebar { position: fixed; left: 0; top: 0; height: 100%; width: 16rem; z-index: 50; display: none; flex-direction: column; justify-content: space-between; background: #fff; border-right: 1px solid #E2E8F0; transition: width .2s; overflow-y: auto; }
+    @media (min-width: 1024px) { #sidebar { display: flex; } }
+    body.sb-open #sidebar { display: flex; }
+    #topbar { position: fixed; top: 0; right: 0; left: 0; height: 4rem; z-index: 40; display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; background: #fff; border-bottom: 1px solid #E2E8F0; transition: left .2s; }
+    @media (min-width: 1024px) { #topbar { left: 16rem; } }
+    #page { padding-top: 4rem; transition: padding .2s; }
+    @media (min-width: 1024px) { #page { padding-left: 16rem; } }
+    body.sb-collapsed #sidebar { width: 4rem; }
+    @media (min-width: 1024px) { body.sb-collapsed #topbar { left: 4rem; } body.sb-collapsed #page { padding-left: 4rem; } }
+    body.sb-collapsed .nav-label, body.sb-collapsed .brand-text, body.sb-collapsed .section-label { display: none; }
+    body.sb-collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+  </style><script src="/app.js?v=6"></script><script src="/layout.js?v=6"></script></head><body class="bg-canvas font-sans text-ink min-h-screen"><aside id="sidebar"><div class="flex flex-col"><div class="flex h-16 items-center gap-3 border-b border-line px-4"><img src="/img/logo.png" alt="" class="h-8 w-8 shrink-0 rounded-lg"><div class="brand-text flex flex-col"><span class="text-sm font-bold leading-none">KorwilAPP</span><span class="text-xs text-ink3">Sanimas Wilayah</span></div></div><div class="p-4"><p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Menu Utama</p><nav class="flex flex-col gap-1"><a href="/" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Ringkasan Wilayah"><span class="material-symbols-outlined">grid_view</span><span class="nav-label">Ringkasan Wilayah</span></a><a href="/daftar-proyek.html" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Daftar Pekerjaan"><span class="material-symbols-outlined">construction</span><span class="nav-label">Daftar Pekerjaan</span></a><a href="/tambah-proyek.html" id="menu-tambah" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Tambah Pekerjaan"><span class="material-symbols-outlined">add_circle</span><span class="nav-label">Tambah Pekerjaan</span></a><a href="/users.html" id="menu-users" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Daftar User"><span class="material-symbols-outlined">group</span><span class="nav-label">Daftar User</span></a><a href="/log-dokumentasi.html" id="menu-log" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Log Dokumentasi"><span class="material-symbols-outlined">photo_camera</span><span class="nav-label">Log Dokumentasi</span></a><a href="/lapming.html" id="menu-lapming" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Laporan Lapming"><span class="material-symbols-outlined">monitoring</span><span class="nav-label">Laporan Lapming</span></a><a href="/form-mingguan.html" id="menu-form-mingguan" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Form Mingguan"><span class="material-symbols-outlined">description</span><span class="nav-label">Form Mingguan</span></a><a href="/checklist.html" id="menu-checklist" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold border-l-2 border-primary bg-primary-soft text-primary" title="Checklist Berkas"><span class="material-symbols-outlined">checklist</span><span class="nav-label">Checklist Berkas</span></a><a href="/anomali-data.html" id="menu-anomali" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Cek Anomali Data"><span class="material-symbols-outlined">rule</span><span class="nav-label">Cek Anomali Data</span></a><a href="/pengaturan.html" id="menu-pengaturan" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Pengaturan Sumber"><span class="material-symbols-outlined">settings</span><span class="nav-label">Pengaturan Sumber</span></a><a href="/progres-minggu.html" id="menu-progres-minggu" hidden class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Progres Lapming"><span class="material-symbols-outlined">query_stats</span><span class="nav-label">Progres Lapming</span></a></nav></div><div class="px-4 py-2"><p class="section-label px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-ink3">Akun</p><nav class="flex flex-col gap-1"><a href="/ganti-sandi.html" class="nav-item flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-semibold text-ink2 hover:bg-muted" title="Ganti Kata Sandi"><span class="material-symbols-outlined">key</span><span class="nav-label">Ganti Kata Sandi</span></a></nav></div></div></aside><header id="topbar"><div class="flex items-center gap-3"><button id="sb-toggle" type="button" aria-label="Perkecil atau besarkan menu" class="flex h-11 w-11 items-center justify-center rounded-lg text-ink2 hover:bg-muted"><span class="material-symbols-outlined">menu</span></button><div class="hidden items-center gap-2 text-xs text-ink3 md:flex"><span class="material-symbols-outlined text-[16px]">map</span><span>Wilayah Operasional</span><span>/</span><span class="font-semibold text-ink">Korwil I - Jawa Barat</span></div></div><div class="flex items-center gap-3"><div class="flex flex-col text-right"><span id="user-name" class="text-sm font-semibold"></span><span id="user-role" class="text-xs text-ink3"></span></div><button onclick="logout()" class="h-9 rounded-lg border border-line px-3 text-sm font-semibold text-ink2 hover:bg-muted">Keluar</button></div></header><main id="page"><div class="mx-auto max-w-6xl px-4 pb-10 lg:px-6">
+<div id="error-message" class="mb-4 hidden rounded-lg border border-danger-line bg-danger-soft px-3 py-2 text-sm text-danger"></div>
+<div class="mb-4 flex flex-col gap-1"><h1 class="text-xl font-bold">Checklist Berkas Pokmas</h1><p class="text-sm text-ink3" id="judul-korwil">Daftar pokmas sesuai korwil Anda.</p></div>
+
+<section id="tampil-daftar">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <input id="cari" type="search" placeholder="Cari nama pokmas, desa, atau kecamatan" class="h-11 w-full max-w-md rounded-lg border border-line bg-white px-3 text-sm">
+    <label class="flex items-center gap-2 text-sm text-ink2">Tampilkan
+      <select id="ukuran" class="h-11 rounded-lg border border-line bg-white px-2 text-sm"><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option></select>
+    </label>
+  </div>
+  <div class="overflow-x-auto rounded-lg border border-line bg-white">
+    <table class="w-full min-w-[640px] text-sm">
+      <thead class="bg-muted text-left text-xs uppercase tracking-wider text-ink3"><tr>
+        <th class="px-3 py-2">No</th><th class="px-3 py-2">Nama Pokmas</th><th class="px-3 py-2">Kab/Kota</th><th class="px-3 py-2">Kecamatan</th><th class="px-3 py-2">Desa</th><th class="px-3 py-2">Tahap</th><th class="px-3 py-2">Progres</th>
+      </tr></thead>
+      <tbody id="daftar-body"></tbody>
+    </table>
+  </div>
+  <div class="mt-3 flex items-center justify-between gap-3">
+    <span id="info-halaman" class="text-sm text-ink3"></span>
+    <div class="flex gap-2">
+      <button id="prev" type="button" class="h-11 rounded-lg border border-line px-4 text-sm font-semibold text-ink2 hover:bg-muted disabled:opacity-50">Sebelumnya</button>
+      <button id="next" type="button" class="h-11 rounded-lg border border-line px-4 text-sm font-semibold text-ink2 hover:bg-muted disabled:opacity-50">Berikutnya</button>
+    </div>
+  </div>
+  <details id="impor-box" hidden class="mt-6 rounded-lg border border-line bg-white p-4">
+    <summary class="cursor-pointer text-sm font-semibold text-ink2">Impor Lembar Kendali (admin)</summary>
+    <p class="mt-2 text-xs text-ink3">Data pokmas korwil ini diganti dengan isi file. Ceklis yang sudah diisi di aplikasi ikut tertimpa.</p>
+    <div class="mt-3 flex flex-wrap items-center gap-2">
+      <input id="berkas" type="file" accept=".xlsx" class="text-sm">
+      <button id="btn-impor" type="button" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Impor</button>
+    </div>
+  </details>
+</section>
+
+<section id="tampil-form" hidden>
+  <button id="kembali" type="button" class="mb-4 h-11 rounded-lg border border-line bg-white px-4 text-sm font-semibold text-ink2 hover:bg-muted">Kembali ke daftar</button>
+  <div class="mb-4 rounded-lg border border-line bg-white p-4">
+    <h2 id="f-nama" class="text-lg font-bold"></h2>
+    <p id="f-lokasi" class="text-sm text-ink3"></p>
+    <p id="f-tfl" class="text-sm text-ink3"></p>
+    <div class="mt-3 flex items-center gap-3">
+      <div class="h-2 flex-1 overflow-hidden rounded-full bg-muted"><div id="f-bar" class="h-2 bg-primary" style="width:0%"></div></div>
+      <span id="f-progres" class="text-sm font-semibold text-ink2"></span>
+    </div>
+  </div>
+  <div id="f-grup" class="flex flex-col gap-4"></div>
+</section>
+</div></main></div>
+<script>
+
+const $ = (id) => document.getElementById(id);
+const errorBox = $('error-message');
+const PAGE_KEY = 'checklist-ukuran';
+const st = { role: '', korwil: '', items: [], pokmas: [], cari: '', hal: 1, ukuran: 10, kunci: null };
+
+function esc2(s) { return esc(s == null ? '' : String(s)); }
+function jumlahTerisi(p) { return Object.keys(p.centang || {}).length; }
+
+// Daftar pokmas: pencarian dan paginasi di sisi klien (data hanya puluhan baris per korwil).
+function daftarTersaring() {
+  const q = st.cari.trim().toLowerCase();
+  if (!q) return st.pokmas;
+  return st.pokmas.filter((p) => [p.info.nama, p.info.desa, p.info.kec, p.info.kab, p.info.no].some((v) => String(v || '').toLowerCase().includes(q)));
+}
+
+function renderDaftar() {
+  const daftar = daftarTersaring();
+  const total = daftar.length;
+  const halAkhir = Math.max(1, Math.ceil(total / st.ukuran));
+  st.hal = Math.min(st.hal, halAkhir);
+  const awal = (st.hal - 1) * st.ukuran;
+  const potong = daftar.slice(awal, awal + st.ukuran);
+  const n = st.items.length;
+  $('daftar-body').innerHTML = potong.length
+    ? potong.map((p) => {
+        const t = jumlahTerisi(p);
+        const pct = n ? Math.round((t / n) * 100) : 0;
+        return `<tr class="cursor-pointer border-t border-line hover:bg-muted" data-kunci="${esc2(p.kunci)}">
+          <td class="px-3 py-2">${esc2(p.info.no)}</td>
+          <td class="px-3 py-2 font-semibold">${esc2(p.info.nama)}</td>
+          <td class="px-3 py-2">${esc2(p.info.kab)}</td>
+          <td class="px-3 py-2">${esc2(p.info.kec)}</td>
+          <td class="px-3 py-2">${esc2(p.info.desa)}</td>
+          <td class="px-3 py-2">${esc2(p.info.tahap)}</td>
+          <td class="px-3 py-2 whitespace-nowrap">${t}/${n} <span class="text-xs text-ink3">(${pct}%)</span></td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="7" class="px-3 py-6 text-center text-ink3">Tidak ada pokmas yang cocok.</td></tr>';
+  $('info-halaman').textContent = total ? `Menampilkan ${awal + 1}-${Math.min(awal + st.ukuran, total)} dari ${total} pokmas` : '0 pokmas';
+  $('prev').disabled = st.hal <= 1;
+  $('next').disabled = st.hal >= halAkhir;
+}
+
+function kunciAktif() { return st.pokmas.find((p) => p.kunci === st.kunci); }
+
+function renderForm() {
+  const p = kunciAktif();
+  if (!p) { tampilDaftar(); return; }
+  $('f-nama').textContent = p.info.nama;
+  $('f-lokasi').textContent = `${p.info.desa}, Kec. ${p.info.kec}, ${p.info.kab} • Tahap ${p.info.tahap}`;
+  $('f-tfl').textContent = [p.info.tfl && `TFL: ${p.info.tfl}`, p.info.korfas && `Korfas: ${p.info.korfas}`].filter(Boolean).join(' • ');
+  const n = st.items.length;
+  const t = jumlahTerisi(p);
+  $('f-progres').textContent = `${t} / ${n} berkas`;
+  $('f-bar').style.width = `${n ? Math.round((t / n) * 100) : 0}%`;
+  // Kelompokkan item per grup (urut kolom seperti di file).
+  const grup = [];
+  for (const it of st.items) {
+    let g = grup.find((x) => x.nama === it.grup);
+    if (!g) { g = { nama: it.grup, items: [] }; grup.push(g); }
+    g.items.push(it);
+  }
+  $('f-grup').innerHTML = grup.map((g) => {
+    const terisi = g.items.filter((it) => p.centang[it.kode]).length;
+    return `<section class="rounded-lg border border-line bg-white p-4">
+      <div class="mb-2 flex items-center justify-between gap-2">
+        <h3 class="font-semibold">${esc2(g.nama)}</h3>
+        <span class="text-xs font-semibold text-ink3">${terisi}/${g.items.length}</span>
+      </div>
+      <div class="flex flex-col gap-1">
+        ${g.items.map((it) => {
+          const nilai = p.centang[it.kode];
+          const ada = !!nilai;
+          const ket = ada && nilai !== 'Bukti' ? `<span class="text-xs text-ink3">${esc2(nilai)}</span>` : '';
+          return `<label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-muted">
+            <input type="checkbox" data-kode="${esc2(it.kode)}" class="mt-1 h-5 w-5 shrink-0 accent-primary" ${ada ? 'checked' : ''}>
+            <span class="flex flex-col"><span class="text-sm ${ada ? 'text-ink' : 'text-ink2'}">${esc2(it.label)}</span>${ket}</span>
+          </label>`;
+        }).join('')}
+      </div>
+    </section>`;
+  }).join('');
+}
+
+function tampilDaftar() {
+  $('tampil-form').hidden = true;
+  $('tampil-daftar').hidden = false;
+  renderDaftar();
+}
+
+function tampilForm(kunci) {
+  st.kunci = kunci;
+  $('tampil-daftar').hidden = true;
+  $('tampil-form').hidden = false;
+  renderForm();
+  window.scrollTo(0, 0);
+}
+
+async function muat() {
+  const d = await api('GET', '/api/checklist' + (st.role === 'admin' && st.korwil ? `?korwil=${encodeURIComponent(st.korwil)}` : ''));
+  st.korwil = d.korwil;
+  st.items = d.items;
+  st.pokmas = d.pokmas;
+  $('judul-korwil').textContent = `Korwil ${d.korwil}`;
+}
+
+async function ubahCentang(kode, ada, kotak) {
+  const p = kunciAktif();
+  const nilai = ada ? 'Bukti' : '';
+  kotak.disabled = true;
+  try {
+    const body = { kunci: p.kunci, kode, nilai };
+    if (st.role === 'admin') body.korwil = st.korwil;
+    const hasil = await api('PUT', '/api/checklist/centang', body);
+    p.centang = hasil.centang;
+    renderForm();
+  } catch (e) {
+    kotak.checked = !ada;
+    showError(errorBox, e.message || 'Gagal menyimpan ceklis.');
+  } finally {
+    kotak.disabled = false;
+  }
+}
+
+$('daftar-body').addEventListener('click', (e) => {
+  const tr = e.target.closest('tr[data-kunci]');
+  if (tr) tampilForm(tr.dataset.kunci);
+});
+$('kembali').addEventListener('click', () => { st.kunci = null; hideError(errorBox); tampilDaftar(); });
+$('cari').addEventListener('input', (e) => { st.cari = e.target.value; st.hal = 1; renderDaftar(); });
+$('ukuran').addEventListener('change', (e) => { st.ukuran = Number(e.target.value) || 10; st.hal = 1; renderDaftar(); });
+$('prev').addEventListener('click', () => { st.hal -= 1; renderDaftar(); });
+$('next').addEventListener('click', () => { st.hal += 1; renderDaftar(); });
+$('f-grup').addEventListener('change', (e) => {
+  const kotak = e.target.closest('input[type="checkbox"][data-kode]');
+  if (kotak) ubahCentang(kotak.dataset.kode, kotak.checked, kotak);
+});
+$('btn-impor').addEventListener('click', async () => {
+  const berkas = $('berkas').files[0];
+  if (!berkas) return showError(errorBox, 'Pilih file .xlsx dulu.');
+  if (!confirm('Data pokmas korwil ini akan diganti dengan isi file. Lanjutkan?')) return;
+  $('btn-impor').disabled = true;
+  try {
+    const q = st.role === 'admin' ? `?korwil=${encodeURIComponent(st.korwil)}` : '';
+    const res = await fetch('/api/checklist/impor' + q, { method: 'POST', credentials: 'same-origin', body: berkas });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || 'Impor gagal.');
+    hideError(errorBox);
+    await muat();
+    st.hal = 1;
+    renderDaftar();
+    alert(`Impor selesai: ${data.pokmas} pokmas.`);
+  } catch (e) {
+    showError(errorBox, e.message);
+  } finally {
+    $('btn-impor').disabled = false;
+  }
+});
+
+(async function mulai() {
+  try {
+    const user = await requireAuth();
+    st.role = user.role || '';
+    if (st.role === 'admin') {
+      $('impor-box').hidden = false;
+      const info = await api('GET', '/api/lapming/info');
+      st.korwil = info.korfas[0] || '';
+    }
+    const ukuran = Number(localStorage.getItem(PAGE_KEY));
+    if ([10, 25, 50].includes(ukuran)) { st.ukuran = ukuran; $('ukuran').value = String(ukuran); }
+    await muat();
+    renderDaftar();
+  } catch (e) {
+    showError(errorBox, e.message || 'Gagal memuat checklist.');
+  }
+})();
+</script>
+</body></html>

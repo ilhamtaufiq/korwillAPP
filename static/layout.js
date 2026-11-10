@@ -46,6 +46,8 @@
       if (lapming) lapming.hidden = !(admin || user.role === 'korwil');
       const formMingguan = document.getElementById('menu-form-mingguan');
       if (formMingguan) formMingguan.hidden = !(admin || user.role === 'korwil');
+      const checklist = document.getElementById('menu-checklist');
+      if (checklist) checklist.hidden = !(admin || user.role === 'korwil');
       const anomali = document.getElementById('menu-anomali');
       if (anomali) anomali.hidden = !(admin || user.role === 'korwil');
       const pengaturan = document.getElementById('menu-pengaturan');
