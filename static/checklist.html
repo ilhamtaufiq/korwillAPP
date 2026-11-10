@@ -159,7 +159,7 @@ function renderForm() {
               <input type="checkbox" data-kode="${esc2(it.kode)}" class="mt-1 h-5 w-5 shrink-0 accent-primary" ${ada ? 'checked' : ''}>
               <span class="flex flex-col"><span class="text-sm ${ada ? 'text-ink' : 'text-ink2'}">${esc2(it.label)}</span>${ket}</span>
             </label>
-            <input type="text" data-ket="${esc2(it.kode)}" value="${esc2(teks)}" maxlength="500" placeholder="Keterangan (opsional)" class="mt-1 h-9 w-full rounded-md border border-line bg-white px-2 text-sm">
+            <input type="text" data-ket="${esc2(it.kode)}" value="${esc2(teks)}" maxlength="500" placeholder="Catatan (opsional)" class="mt-1 h-9 w-full rounded-md border border-line bg-white px-2 text-sm">
           </div>`;
         }).join('')}
       </div>
@@ -196,7 +196,7 @@ function renderCetak() {
     <table class="info" style="margin-bottom:6px"><tbody>
       ${info.map(([k, v]) => `<tr><td style="width:140px">${esc2(k)}</td><td style="width:8px">:</td><td>${esc2(v)}</td></tr>`).join('')}
     </tbody></table>
-    <table><thead><tr><th style="width:34px">No.</th><th>Item Berkas</th><th style="width:64px">Checklist</th><th>Keterangan</th></tr></thead>
+    <table><thead><tr><th style="width:34px">No.</th><th style="width:38%">Item Berkas</th><th style="width:64px">Checklist</th><th>Catatan</th></tr></thead>
     <tbody>${baris}</tbody></table>`;
 }
 
