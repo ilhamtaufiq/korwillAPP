@@ -37,14 +37,7 @@
       <button id="next" type="button" class="h-11 rounded-lg border border-line px-4 text-sm font-semibold text-ink2 hover:bg-muted disabled:opacity-50">Berikutnya</button>
     </div>
   </div>
-  <details id="impor-box" hidden class="mt-6 rounded-lg border border-line bg-white p-4">
-    <summary class="cursor-pointer text-sm font-semibold text-ink2">Impor Lembar Kendali (admin)</summary>
-    <p class="mt-2 text-xs text-ink3">Data pokmas korwil ini diganti dengan isi file. Ceklis yang sudah diisi di aplikasi ikut tertimpa.</p>
-    <div class="mt-3 flex flex-wrap items-center gap-2">
-      <input id="berkas" type="file" accept=".xlsx" class="text-sm">
-      <button id="btn-impor" type="button" class="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50">Impor</button>
-    </div>
-  </details>
+
 </section>
 
 <section id="tampil-form" hidden>
@@ -200,34 +193,11 @@ $('f-grup').addEventListener('change', (e) => {
   const kotak = e.target.closest('input[type="checkbox"][data-kode]');
   if (kotak) ubahCentang(kotak.dataset.kode, kotak.checked, kotak);
 });
-$('btn-impor').addEventListener('click', async () => {
-  const berkas = $('berkas').files[0];
-  if (!berkas) return showError(errorBox, 'Pilih file .xlsx dulu.');
-  if (!confirm('Data pokmas korwil ini akan diganti dengan isi file. Lanjutkan?')) return;
-  $('btn-impor').disabled = true;
-  try {
-    const q = st.role === 'admin' ? `?korwil=${encodeURIComponent(st.korwil)}` : '';
-    const res = await fetch('/api/checklist/impor' + q, { method: 'POST', credentials: 'same-origin', body: berkas });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error((data && data.error) || 'Impor gagal.');
-    hideError(errorBox);
-    await muat();
-    st.hal = 1;
-    renderDaftar();
-    alert(`Impor selesai: ${data.pokmas} pokmas.`);
-  } catch (e) {
-    showError(errorBox, e.message);
-  } finally {
-    $('btn-impor').disabled = false;
-  }
-});
-
 (async function mulai() {
   try {
     const user = await requireAuth();
     st.role = user.role || '';
     if (st.role === 'admin') {
-      $('impor-box').hidden = false;
       const info = await api('GET', '/api/lapming/info');
       st.korwil = info.korfas[0] || '';
     }
