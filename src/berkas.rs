@@ -44,7 +44,7 @@ pub const BERKAS: &[(&str, &str, &str)] = &[
     ("AY", "SPTJM", "SPTJM"),
     ("AZ", "BARJAS", "BARJAS"),
     ("BA", "BERKAS ADD/CCO", "BERKAS ADD/CCO"),
-    ("BB", "LPD", "100%"),
+    ("BB", "LPD", "1"),
     ("BC", "LPD", "2"),
     ("BD", "LPD", "3"),
     ("BE", "LPD", "4"),

@@ -187,7 +187,7 @@ function renderCetak() {
       no += 1;
       const ada = !!p.centang[it.kode];
       const ket = (p.keterangan && p.keterangan[it.kode]) || '';
-      return `<tr><td style="width:34px;text-align:center">${no}</td><td>${esc2(it.label)}</td><td style="width:64px;text-align:center">${ada ? '✓' : ''}</td><td>${esc2(ket)}</td></tr>`;
+      return `<tr><td style="width:34px;text-align:center">${no}</td><td>${esc2(it.label)}</td><td style="width:64px;text-align:center"><span style="display:inline-block;width:11px;height:11px;border:1px solid #000;line-height:11px;text-align:center;font-size:9px">${ada ? '✓' : ''}</span></td><td>${esc2(ket)}</td></tr>`;
     }).join('');
     return `<tr class="grup"><td colspan="4">${esc2(g.nama)}</td></tr>${isi}`;
   }).join('');
