@@ -101,7 +101,7 @@ fn realisasi_per_rpdb(x: &Row, riwayat: &[(u32, Vec<Row>)], tanggal: &[Option<Na
     let mut hasil = vec![[0.0; 3]; REALISASI_KOLOM.len()];
     for (w, rows) in riwayat {
         let Some(y) = rows.iter().find(|y| y.lpk == x.lpk && y.no == x.no) else { continue };
-        let akhir = super::kurva::akhir_minggu(*w);
+        let akhir = super::kurva::periode_minggu(riwayat, *w).1;
         let tahap = tanggal
             .iter()
             .enumerate()

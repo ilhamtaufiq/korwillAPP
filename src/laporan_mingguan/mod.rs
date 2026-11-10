@@ -137,7 +137,8 @@ pub fn bangun_dengan_peringatan(
     isian.extend(tambahan);
     // KURVA-S ditulis ulang dulu (jumlah blok mengikuti jumlah lokasi), lalu sel lain diisi.
     let blok = kurva::dari_riwayat(rows, riwayat);
-    let template = kurva::tulis(TEMPLATE, &blok)?;
+    let kalender: Vec<_> = (1..=kurva::PERIODE as u32).map(|w| kurva::periode_minggu(riwayat, w)).collect();
+    let template = kurva::tulis(TEMPLATE, &blok, &kalender)?;
     let hasil = isi::isi_template(&template, &isian)?;
     // Simpan nilai rumus di file supaya tampil juga di penampil yang tidak menghitung ulang.
     // Kalau perhitungan gagal, file tetap dikirim; Excel menghitung ulang saat dibuka.
@@ -443,11 +444,14 @@ mod tests {
         let out = bangun(&rows, 2, "Ganthi", &FormData::default(), &crate::lapming::calc::DataPokmas::default(), &riwayat).unwrap();
         let mut wb = buka(&out);
         let mut angka = |sel: &str| -> f64 { nilai(&mut wb, "KURVA-S", sel).parse().unwrap() };
-        // Periode ke-25 (AH) berakhir 10 Sep: minggu 1 sudah selesai. Periode ke-26 (AI) berakhir 17 Sep: minggu 2.
-        assert!((angka("AH13") - 0.1).abs() < 1e-9, "rencana AH13");
-        assert!((angka("AI13") - 0.2).abs() < 1e-9, "rencana AI13");
-        assert!((angka("AH15") - 0.05).abs() < 1e-9, "realisasi AH15");
-        assert!((angka("AI15") - 0.15).abs() < 1e-9, "realisasi AI15");
+        // Satu kolom per minggu Lapming: minggu 1 di kolom I, minggu 2 di kolom J.
+        assert!((angka("I13") - 0.1).abs() < 1e-9, "rencana I13");
+        assert!((angka("J13") - 0.2).abs() < 1e-9, "rencana J13");
+        assert!((angka("I15") - 0.05).abs() < 1e-9, "realisasi I15");
+        assert!((angka("J15") - 0.15).abs() < 1e-9, "realisasi J15");
+        // Kumulatif dan deviasi dihitung dari rumus dan tersimpan di file.
+        assert!((angka("J14") - 0.3).abs() < 1e-9, "kumulatif rencana J14");
+        assert!((angka("J17") - (-0.1)).abs() < 1e-9, "deviasi J17");
         assert_eq!(nilai(&mut wb, "KURVA-S", "B13"), "Bogor");
         assert_eq!(nilai(&mut wb, "KURVA-S", "D13"), "Pagelaran");
     }

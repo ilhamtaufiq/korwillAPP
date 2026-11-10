@@ -553,7 +553,7 @@ pub fn isi_nilai_rumus(xlsx: &[u8]) -> Result<Vec<u8>, String> {
     // Hitung dan tulis nilai ke setiap sel rumus.
     let kunci_rumus: Vec<Kunci> = buku.sel.iter().filter(|(_, s)| s.rumus.is_some()).map(|(k, _)| *k).collect();
     for k in kunci_rumus {
-        buku.nilai_sel(k);
+        let _ = buku.nilai_sel(k);
     }
     for (idx, (_, path)) in daftar.iter().enumerate() {
         let xml_baru = re_sel.replace_all(&xml_sheet[idx], |c: &regex::Captures| {

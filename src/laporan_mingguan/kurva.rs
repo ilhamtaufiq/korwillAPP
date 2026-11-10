@@ -28,8 +28,9 @@ pub struct Blok {
     pub kec: String,
     pub desa: String,
     pub nama: String,
-    pub rencana: Vec<f64>,
-    pub realisasi: Vec<f64>,
+    /// Selisih per minggu; None untuk minggu yang belum ada datanya.
+    pub rencana: Vec<Option<f64>>,
+    pub realisasi: Vec<Option<f64>>,
 }
 
 pub fn huruf_kolom(mut c: u32) -> String {
@@ -42,57 +43,131 @@ pub fn huruf_kolom(mut c: u32) -> String {
     out
 }
 
-/// Akhir periode KURVA-S ke-p (0-based): 19 Maret 2026, lalu tiap 7 hari.
-pub fn akhir_periode(p: usize) -> NaiveDate {
-    NaiveDate::from_ymd_opt(2026, 3, 19).unwrap() + chrono::Duration::days(7 * p as i64)
-}
+const BULAN: [&str; 12] = [
+    "JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER",
+];
+const ROMAWI: [&str; 6] = ["I", "II", "III", "IV", "V", "VI"];
 
-/// Akhir minggu Lapming ke-w: minggu 1 berakhir 7 September 2026.
-pub fn akhir_minggu(w: u32) -> NaiveDate {
-    NaiveDate::from_ymd_opt(2026, 9, 7).unwrap() + chrono::Duration::days(7 * (w as i64 - 1))
-}
-
-/// Nilai kumulatif (rencana, realisasi) satu lokasi pada akhir periode `p`, dari minggu Lapming terakhir yang selesai.
-fn kumulatif_pada(riwayat: &[(u32, Vec<Row>)], lpk: bool, no: &str, p: usize) -> (f64, f64) {
-    let batas = akhir_periode(p);
-    let mut terbaru: Option<(u32, f64, f64)> = None;
-    for (w, rows) in riwayat {
-        if akhir_minggu(*w) > batas {
-            continue;
-        }
-        if let Some(x) = rows.iter().find(|x| x.lpk == lpk && x.no == no) {
-            if terbaru.map_or(true, |(tw, _, _)| *w > tw) {
-                terbaru = Some((*w, x.ah.unwrap_or(0.0), x.ag));
+/// Periode (mulai, selesai) minggu Lapming ke-`w`. Diambil dari tanggal yang paling banyak dipakai di sheet
+/// minggu itu; minggu tanpa tanggal dihitung dari minggu terdekat yang punya tanggal, atau dari 1 September 2026.
+pub fn periode_minggu(riwayat: &[(u32, Vec<Row>)], w: u32) -> (NaiveDate, NaiveDate) {
+    let mut dikenal: Vec<(u32, NaiveDate, NaiveDate)> = Vec::new();
+    for (no, rows) in riwayat {
+        let mut hitung: Vec<((NaiveDate, NaiveDate), usize)> = Vec::new();
+        for x in rows {
+            if let (Some(a), Some(b)) = (x.mulai, x.selesai) {
+                if b < a {
+                    continue;
+                }
+                match hitung.iter_mut().find(|(k, _)| *k == (a, b)) {
+                    Some((_, n)) => *n += 1,
+                    None => hitung.push(((a, b), 1)),
+                }
             }
+        }
+        if let Some(((a, b), _)) = hitung.into_iter().max_by_key(|(_, n)| *n) {
+            dikenal.push((*no, a, b));
         }
     }
-    terbaru.map(|(_, a, b)| (a, b)).unwrap_or((0.0, 0.0))
+    if let Some((_, a, b)) = dikenal.iter().find(|(no, _, _)| *no == w) {
+        return (*a, *b);
+    }
+    match dikenal.iter().min_by_key(|(no, _, _)| (*no as i64 - w as i64).abs()) {
+        Some((no, a, b)) => {
+            let geser = chrono::Duration::days(7 * (w as i64 - *no as i64));
+            (*a + geser, *b + geser)
+        }
+        None => {
+            let a = NaiveDate::from_ymd_opt(2026, 9, 1).unwrap() + chrono::Duration::days(7 * (w as i64 - 1));
+            (a, a + chrono::Duration::days(6))
+        }
+    }
 }
 
-/// Blok KURVA-S dari data Lapming: satu blok per lokasi, urut seperti daftar baris.
+/// Blok KURVA-S dari data Lapming: satu blok per lokasi, satu kolom per minggu Lapming (M1 di kolom pertama).
 pub fn dari_riwayat(rows: &[Row], riwayat: &[(u32, Vec<Row>)]) -> Vec<Blok> {
+    let terakhir = riwayat.iter().map(|(w, _)| *w).max().unwrap_or(0);
     rows.iter()
         .map(|x| {
-            let mut rencana_kum = Vec::with_capacity(PERIODE);
-            let mut realisasi_kum = Vec::with_capacity(PERIODE);
-            for p in 0..PERIODE {
-                let (r, s) = kumulatif_pada(riwayat, x.lpk, &x.no, p);
-                rencana_kum.push(r);
-                realisasi_kum.push(s);
+            let mut rencana = Vec::with_capacity(PERIODE);
+            let mut realisasi = Vec::with_capacity(PERIODE);
+            let (mut kum_r, mut kum_s) = (0.0, 0.0);
+            for w in 1..=PERIODE as u32 {
+                if w > terakhir {
+                    rencana.push(None);
+                    realisasi.push(None);
+                    continue;
+                }
+                // Minggu tanpa data (atau target kosong) memakai kumulatif minggu sebelumnya.
+                let baris = riwayat.iter().find(|(no, _)| *no == w).and_then(|(_, rs)| rs.iter().find(|y| y.lpk == x.lpk && y.no == x.no));
+                let (r, s) = match baris {
+                    Some(y) => (y.ah.unwrap_or(kum_r), y.ag),
+                    None => (kum_r, kum_s),
+                };
+                rencana.push(Some(r - kum_r));
+                realisasi.push(Some(s - kum_s));
+                kum_r = r;
+                kum_s = s;
             }
-            let selisih = |kum: &[f64]| -> Vec<f64> {
-                kum.iter().enumerate().map(|(p, v)| if p == 0 { *v } else { v - kum[p - 1] }).collect()
-            };
             Blok {
                 kab: x.kab.clone().unwrap_or_default(),
                 kec: x.kec.clone().unwrap_or_default(),
                 desa: x.desa.clone(),
                 nama: x.nama.clone(),
-                rencana: selisih(&rencana_kum),
-                realisasi: selisih(&realisasi_kum),
+                rencana,
+                realisasi,
             }
         })
         .collect()
+}
+
+/// Header periode (baris 9-11, kolom I..AQ): bulan, minggu ke- dalam bulan itu, dan rentang tanggal.
+/// Mengembalikan XML baris yang sudah diganti dan daftar merge bulan.
+fn tulis_header(mut atas: String, kalender: &[(NaiveDate, NaiveDate)]) -> (String, Vec<String>) {
+    use chrono::Datelike;
+    let mut merge = Vec::new();
+    let ganti = |xml: &mut String, sel: &str, isi: Option<String>| {
+        let re = Regex::new(&format!(r#"(?s)<c r="{sel}"([^>]*?)(?:/>|>.*?</c>)"#)).unwrap();
+        let re_s = Regex::new(r#" s="\d+""#).unwrap();
+        if let Some(m) = re.captures(xml) {
+            let s = re_s.find(&m[1]).map(|v| v.as_str().to_string()).unwrap_or_default();
+            let baru = match isi {
+                Some(t) => format!(r#"<c r="{sel}"{s} t="inlineStr"><is><t>{}</t></is></c>"#, xml_escape(&t)),
+                None => format!(r#"<c r="{sel}"{s}/>"#),
+            };
+            let rentang = m.get(0).unwrap().range();
+            xml.replace_range(rentang, &baru);
+        }
+    };
+    let mut awal_bulan = 0usize;
+    let mut ke = 0usize;
+    for (p, (mulai, selesai)) in kalender.iter().enumerate() {
+        let kol = huruf_kolom(KOL_PERIODE_AWAL + p as u32);
+        let bulan_baru = p == 0 || (kalender[p - 1].0.month(), kalender[p - 1].0.year()) != (mulai.month(), mulai.year());
+        if bulan_baru {
+            if p > 0 && p - awal_bulan > 1 {
+                merge.push(format!(
+                    r#"<mergeCell ref="{}9:{}9"/>"#,
+                    huruf_kolom(KOL_PERIODE_AWAL + awal_bulan as u32),
+                    huruf_kolom(KOL_PERIODE_AWAL + p as u32 - 1)
+                ));
+            }
+            awal_bulan = p;
+            ke = 0;
+        }
+        ganti(&mut atas, &format!("{kol}9"), bulan_baru.then(|| format!("{} {}", BULAN[mulai.month0() as usize], mulai.year())));
+        ganti(&mut atas, &format!("{kol}10"), Some(ROMAWI[ke.min(ROMAWI.len() - 1)].to_string()));
+        ganti(&mut atas, &format!("{kol}11"), Some(format!("{} s/d {}", mulai.day(), selesai.day())));
+        ke += 1;
+    }
+    if kalender.len() - awal_bulan > 1 {
+        merge.push(format!(
+            r#"<mergeCell ref="{}9:{}9"/>"#,
+            huruf_kolom(KOL_PERIODE_AWAL + awal_bulan as u32),
+            huruf_kolom(KOL_PERIODE_AWAL + kalender.len() as u32 - 1)
+        ));
+    }
+    (atas, merge)
 }
 
 /// Gaya tiap sel prototipe (baris 13..17 template), per offset baris dan huruf kolom.
@@ -137,7 +212,7 @@ fn sel(gaya: &HashMap<(u32, String), String>, offset: u32, kol: &str, baris: u32
 }
 
 /// Menulis ulang KURVA-S di template dengan satu blok per lokasi dan ringkasan rata-rata.
-pub fn tulis(template: &[u8], blok: &[Blok]) -> Result<Vec<u8>, String> {
+pub fn tulis(template: &[u8], blok: &[Blok], kalender: &[(NaiveDate, NaiveDate)]) -> Result<Vec<u8>, String> {
     let mut zin = zip::ZipArchive::new(Cursor::new(template)).map_err(|e| e.to_string())?;
     let mut berkas: Vec<(String, Vec<u8>)> = Vec::new();
     for i in 0..zin.len() {
@@ -180,8 +255,8 @@ pub fn tulis(template: &[u8], blok: &[Blok]) -> Result<Vec<u8>, String> {
             ];
             for (p, kol) in kol_periode.iter().enumerate() {
                 let isi = match off {
-                    0 => Isi::Angka(*b.rencana.get(p).unwrap_or(&0.0)),
-                    2 => Isi::Angka(*b.realisasi.get(p).unwrap_or(&0.0)),
+                    0 => b.rencana.get(p).copied().flatten().map(Isi::Angka).unwrap_or(Isi::Kosong),
+                    2 => b.realisasi.get(p).copied().flatten().map(Isi::Angka).unwrap_or(Isi::Kosong),
                     1 => Isi::Rumus(if p == 0 { format!("{kol}{}", base) } else { format!("{}{}+{kol}{}", kol_periode[p - 1], base + 1, base) }),
                     3 => Isi::Rumus(if p == 0 { format!("{kol}{}", base + 2) } else { format!("{}{}+{kol}{}", kol_periode[p - 1], base + 3, base + 2) }),
                     _ => Isi::Rumus(format!("{kol}{}-{kol}{}", base + 3, base + 1)),
@@ -246,12 +321,16 @@ pub fn tulis(template: &[u8], blok: &[Blok]) -> Result<Vec<u8>, String> {
     let kepala = &xml[..awal];
     let ekor = &xml[akhir..];
     let re_merge = Regex::new(r#"<mergeCell ref="([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?"/>"#).unwrap();
+    let (atas, merge_bulan) = tulis_header(atas, kalender);
+    // Merge bulan lama di baris 9 (kolom periode) diganti dengan yang baru.
+    let kol_periode_set: std::collections::HashSet<&str> = kol_periode.iter().map(|k| k.as_str()).collect();
     let merge_lama: Vec<String> = re_merge
         .captures_iter(ekor)
         .filter(|c| c[2].parse::<u32>().unwrap() < BARIS_AWAL)
+        .filter(|c| !(&c[2] == "9" && kol_periode_set.contains(&c[1])))
         .map(|c| c[0].to_string())
         .collect();
-    let semua_merge: Vec<String> = merge_lama.into_iter().chain(merge).collect();
+    let semua_merge: Vec<String> = merge_lama.into_iter().chain(merge_bulan).chain(merge).collect();
     let re_merge_blok = Regex::new(r#"<mergeCells count="\d+">.*?</mergeCells>"#).unwrap();
     let ekor_baru = re_merge_blok
         .replace(ekor, format!(r#"<mergeCells count="{}">{}</mergeCells>"#, semua_merge.len(), semua_merge.join("")).as_str())
@@ -291,11 +370,12 @@ mod tests {
                 kec: "Ciomas".into(),
                 desa: format!("Desa {k}"),
                 nama: format!("Pokmas {k}"),
-                rencana: vec![0.01; PERIODE],
-                realisasi: vec![0.005; PERIODE],
+                rencana: vec![Some(0.01); PERIODE],
+                realisasi: vec![Some(0.005); PERIODE],
             })
             .collect();
-        let out = tulis(template, &blok).unwrap();
+        let kalender: Vec<(NaiveDate, NaiveDate)> = (1..=PERIODE as u32).map(|w| periode_minggu(&[], w)).collect();
+        let out = tulis(template, &blok, &kalender).unwrap();
         let mut wb: calamine::Xlsx<_> = calamine::open_workbook_from_rs(std::io::Cursor::new(out)).unwrap();
         let r = calamine::Reader::worksheet_range(&mut wb, "KURVA-S").unwrap();
         let (r0, c0) = r.start().unwrap_or((0, 0));
@@ -310,5 +390,10 @@ mod tests {
         assert_eq!(teks(93, 1), "Rata-rata antar lokasi");
         assert_eq!(teks(93, 8), "RENCANA");
         assert_eq!(teks(97, 8), "DEVIASI");
+        // Header dibuat dari kalender minggu: tanpa data, minggu 1 mulai 1 September 2026.
+        assert_eq!(teks(9, 9), "SEPTEMBER 2026");
+        assert_eq!(teks(10, 9), "I");
+        assert_eq!(teks(11, 9), "1 s/d 7");
+        assert_eq!(teks(9, 14), "OKTOBER 2026");
     }
 }
